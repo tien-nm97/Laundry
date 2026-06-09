@@ -1,0 +1,71 @@
+<h2>Đề xuất Kiến trúc Hệ thống</h2>
+<p class="subtitle">Hãy xem qua các phương án kiến trúc bên dưới. Phương án A là phương án khuyên dùng cho dự án này.</p>
+
+<div class="options">
+  <div class="option selected" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Next.js Monolith (Khuyên dùng)</h3>
+      <p>Tất cả chức năng (Admin, Nhà giặt, Form QR Khoa phòng) tích hợp chung trong một ứng dụng Next.js. Kết nối trực tiếp PostgreSQL qua Prisma.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Phân tách Frontend và API Backend</h3>
+      <p>Next.js đảm nhiệm Frontend riêng biệt. Một dự án API Backend độc lập (Node.js/Express hoặc NestJS) kết nối database để xử lý nghiệp vụ.</p>
+    </div>
+  </div>
+</div>
+
+<div class="split" style="margin-top: 2rem;">
+  <div class="mockup">
+    <div class="mockup-header" style="background:#4f46e5;color:white;">Phương án A: Next.js Monolith</div>
+    <div class="mockup-body" style="padding: 1.5rem;">
+      <h4 style="margin-top:0;">Đặc điểm:</h4>
+      <p>Sử dụng Next.js App Router làm cả giao diện (React) lẫn API Routes để xử lý nghiệp vụ backend. Xác thực yêu cầu QR bằng mã thông báo bảo mật (Signed Token) trong URL.</p>
+      
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Ưu điểm</h4>
+          <ul>
+            <li>Triển khai cực nhanh, dễ bảo trì (1 codebase duy nhất).</li>
+            <li>Prisma kết nối trực tiếp giúp truy vấn database siêu nhanh.</li>
+            <li>Tối ưu hóa SEO và bảo mật dễ dàng qua Server Components.</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Nhược điểm</h4>
+          <ul>
+            <li>Khó tách riêng đội ngũ làm Front-end và Back-end nếu dự án phình to.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Phương án B: Split Frontend/Backend</div>
+    <div class="mockup-body" style="padding: 1.5rem;">
+      <h4 style="margin-top:0;">Đặc điểm:</h4>
+      <p>Ứng dụng Next.js chỉ gọi API qua HTTP. API Server riêng chạy Express/NestJS xử lý toàn bộ Prisma và PostgreSQL.</p>
+      
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Ưu điểm</h4>
+          <ul>
+            <li>Kiến trúc phân tách rõ ràng.</li>
+            <li>Dễ dàng mở rộng API phục vụ cho các hệ thống khác của bệnh viện (HIS/LIS) sau này.</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Nhược điểm</h4>
+          <ul>
+            <li>Tăng gấp đôi công sức cài đặt, cấu hình, và triển khai (2 server độc lập).</li>
+            <li>Phải xử lý vấn đề CORS, phân quyền phức tạp hơn giữa 2 môi trường.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,61 @@
+<h2>Thiết kế Cơ sở dữ liệu (Database Schema) - Phiên bản 2</h2>
+<p class="subtitle">Đã tối giản bảng Cấp phát (loại bỏ việc kiểm đếm khi giao hàng theo yêu cầu).</p>
+
+<div class="cards">
+  <div class="card" style="flex: 1 1 300px; border: 1px solid var(--border); border-radius: 8px;">
+    <div class="card-body" style="padding: 1rem;">
+      <h3 style="color:#4f46e5;margin-top:0;">1. Cấu hình & Lô nhập</h3>
+      <ul style="padding-left: 1.2rem; line-height: 1.6;">
+        <li><strong>LinenType</strong> (Loại đồ vải)
+          <br><small style="color:var(--text-muted)">ID | name (Ga giường, áo mổ...) | unit (cái, bộ)</small>
+        </li>
+        <li style="margin-top:0.5rem;"><strong>Batch</strong> (Lô hàng nhập tổng - Phòng Quản trị)
+          <br><small style="color:var(--text-muted)">ID | code (mã lô) | linenTypeId | totalQuantity | remainingQuantity | importedAt</small>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="flex: 1 1 300px; border: 1px solid var(--border); border-radius: 8px;">
+    <div class="card-body" style="padding: 1rem;">
+      <h3 style="color:#10b981;margin-top:0;">2. Lưu hành & Hao hụt</h3>
+      <ul style="padding-left: 1.2rem; line-height: 1.6;">
+        <li><strong>LinenCirculation</strong> (Đợt sử dụng - Nhà giặt trích)
+          <br><small style="color:var(--text-muted)">ID | batchId | startUseDate (ngày đóng dấu sử dụng) | originalQuantity | activeQuantity | discardedQuantity</small>
+        </li>
+        <li style="margin-top:0.5rem;"><strong>LinenDiscardLog</strong> (Ghi nhận hư hỏng - Nhà giặt nhập)
+          <br><small style="color:var(--text-muted)">ID | linenCirculationId | quantity (số lượng hỏng) | loggedAt | reason</small>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="flex: 1 1 300px; border: 1px solid var(--border); border-radius: 8px; border-color: #f59e0b;">
+    <div class="card-body" style="padding: 1rem;">
+      <h3 style="color:#f59e0b;margin-top:0;">3. Khoa phòng & Yêu cầu (Đã rút gọn)</h3>
+      <ul style="padding-left: 1.2rem; line-height: 1.6;">
+        <li><strong>Ward</strong> (Khoa phòng)
+          <br><small style="color:var(--text-muted)">ID | name | qrToken</small>
+        </li>
+        <li style="margin-top:0.5rem;"><strong>Ticket</strong> (Phiếu yêu cầu đồ vải)
+          <br><small style="color:var(--text-muted)">ID | wardId | status (PENDING -> DELIVERED) | deliveryDate | createdAt</small>
+        </li>
+        <li style="margin-top:0.5rem; color: #b45309; font-weight: bold;"><strong>TicketItem</strong> (Chi tiết phiếu yêu cầu)
+          <br><small style="color:var(--text-muted)">ID | ticketId | linenTypeId | <strong>quantity</strong> (Chỉ lưu 1 cột số lượng yêu cầu và mặc định giao đủ, không có cột kiểm đếm thực tế)</small>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top: 2rem;">
+  <div class="mockup-header" style="background:#4f46e5;color:white;">Quy trình Vận hành Đơn giản hóa (Không kiểm đếm)</div>
+  <div class="mockup-body" style="padding: 1.5rem; line-height: 1.8;">
+    <ol>
+      <li>Hộ lý quét mã QR tại khoa -> Form tự nhận diện khoa -> Điền số lượng cần giao -> Gửi Ticket (trạng thái <code>PENDING</code>).</li>
+      <li>Tại nhà giặt, hệ thống hiển thị danh sách Ticket cần giao cho ngày hôm sau.</li>
+      <li>Nhà giặt soạn đồ theo đúng số lượng hộ lý yêu cầu, xếp lên xe giao.</li>
+      <li>Khi đi giao, nhà giặt chỉ cần bấm <strong>"Xác nhận đã giao"</strong> trên hệ thống. Ticket lập tức chuyển sang trạng thái <code>DELIVERED</code>. Không có quy trình đếm nhận hay đối soát số lượng thực tế tại khoa để giảm thiểu thao tác nhập liệu và thời gian của nhân sự đi giao.</li>
+    </ol>
+  </div>
+</div>

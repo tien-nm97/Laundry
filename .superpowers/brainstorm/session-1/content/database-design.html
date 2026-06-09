@@ -1,0 +1,61 @@
+<h2>Thiết kế Cơ sở dữ liệu (Database Schema)</h2>
+<p class="subtitle">Dưới đây là thiết kế các bảng trong cơ sở dữ liệu (PostgreSQL) thông qua Prisma ORM.</p>
+
+<div class="cards">
+  <div class="card" style="flex: 1 1 300px; border: 1px solid var(--border); border-radius: 8px;">
+    <div class="card-body" style="padding: 1rem;">
+      <h3 style="color:#4f46e5;margin-top:0;">1. Cấu hình & Lô nhập</h3>
+      <ul style="padding-left: 1.2rem; line-height: 1.6;">
+        <li><strong>LinenType</strong> (Loại đồ vải)
+          <br><small style="color:var(--text-muted)">ID | name (Ga giường, áo mổ...) | unit (cái, bộ)</small>
+        </li>
+        <li style="margin-top:0.5rem;"><strong>Batch</strong> (Lô hàng nhập tổng - Quản trị nhập)
+          <br><small style="color:var(--text-muted)">ID | code (mã lô) | linenTypeId | totalQuantity (1000) | remainingQuantity (500) | importedAt</small>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="flex: 1 1 300px; border: 1px solid var(--border); border-radius: 8px;">
+    <div class="card-body" style="padding: 1rem;">
+      <h3 style="color:#10b981;margin-top:0;">2. Lưu hành & Hao hụt</h3>
+      <ul style="padding-left: 1.2rem; line-height: 1.6;">
+        <li><strong>LinenCirculation</strong> (Đợt sử dụng - Nhà giặt trích)
+          <br><small style="color:var(--text-muted)">ID | batchId | startUseDate (ngày đóng dấu sử dụng) | originalQuantity (500) | activeQuantity (480) | discardedQuantity (20)</small>
+        </li>
+        <li style="margin-top:0.5rem;"><strong>LinenDiscardLog</strong> (Ghi nhận hư hỏng - Nhà giặt nhập)
+          <br><small style="color:var(--text-muted)">ID | linenCirculationId | quantity (số lượng hỏng) | loggedAt | reason (rách, mòn, ố...)</small>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="flex: 1 1 300px; border: 1px solid var(--border); border-radius: 8px;">
+    <div class="card-body" style="padding: 1rem;">
+      <h3 style="color:#f59e0b;margin-top:0;">3. Khoa phòng & Cấp phát</h3>
+      <ul style="padding-left: 1.2rem; line-height: 1.6;">
+        <li><strong>Ward</strong> (Khoa phòng)
+          <br><small style="color:var(--text-muted)">ID | name (Khoa Ngoại, Cấp cứu...) | qrToken (mã bảo mật dùng cho URL QR)</small>
+        </li>
+        <li style="margin-top:0.5rem;"><strong>Ticket</strong> (Phiếu yêu cầu đồ vải - Hộ lý tạo)
+          <br><small style="color:var(--text-muted)">ID | wardId | status (PENDING -> PREPARED -> DELIVERED) | deliveryDate (ngày giao dự kiến - hôm sau) | createdAt</small>
+        </li>
+        <li style="margin-top:0.5rem;"><strong>TicketItem</strong> (Chi tiết phiếu yêu cầu)
+          <br><small style="color:var(--text-muted)">ID | ticketId | linenTypeId | requestedQty | deliveredQty</small>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top: 2rem;">
+  <div class="mockup-header" style="background:#1f2937;color:white;">Mối quan hệ chính (Data Flow)</div>
+  <div class="mockup-body" style="padding: 1.5rem; line-height: 1.8;">
+    <ol>
+      <li><strong>Nhập hàng:</strong> <code>Batch</code> kết nối trực tiếp với <code>LinenType</code>.</li>
+      <li><strong>Đưa vào sử dụng:</strong> Nhà giặt lấy hàng từ <code>Batch</code>, tạo bản ghi <code>LinenCirculation</code> để gắn <strong>Ngày bắt đầu sử dụng (startUseDate)</strong>.</li>
+      <li><strong>Yêu cầu hàng ngày:</strong> Hộ lý quét QR -> tạo <code>Ticket</code> ứng với <code>Ward</code>. Mỗi ticket có nhiều <code>TicketItem</code> liên kết với <code>LinenType</code>.</li>
+      <li><strong>Báo hỏng & Tuổi thọ:</strong> Khi nhà giặt loại bỏ đồ vải hỏng, họ chọn đúng đợt <code>LinenCirculation</code> (dựa trên vết đóng dấu vật lý). Hệ thống so sánh giữa <code>loggedAt</code> và <code>startUseDate</code> để tính toán <strong>tuổi thọ sử dụng trung bình</strong> của đồ vải.</li>
+    </ol>
+  </div>
+</div>

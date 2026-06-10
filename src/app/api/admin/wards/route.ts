@@ -3,6 +3,8 @@ import { verifyAdminRequest } from '@/lib/jwt'
 import { NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   const auth = await verifyAdminRequest(request)
   if (auth.error) {

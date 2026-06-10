@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { verifyLaundryRequest } from '@/lib/jwt'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   const auth = await verifyLaundryRequest(request)
   if (auth.error) {

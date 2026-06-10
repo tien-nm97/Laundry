@@ -69,6 +69,12 @@ model LinenDiscardLog {
   loggedAt           DateTime         @default(now())
 }
 
+model Orderly {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 model Ward {
   id          String   @id @default(uuid())
   name        String   @unique
@@ -78,13 +84,14 @@ model Ward {
 }
 
 model Ticket {
-  id           String       @id @default(uuid())
-  wardId       String
-  ward         Ward         @relation(fields: [wardId], references: [id])
-  status       TicketStatus @default(PENDING)
-  deliveryDate DateTime
-  createdAt    DateTime     @default(now())
-  items        TicketItem[]
+  id            String       @id @default(uuid())
+  wardId        String
+  ward          Ward         @relation(fields: [wardId], references: [id])
+  status        TicketStatus @default(PENDING)
+  requesterName String
+  deliveryDate  DateTime
+  createdAt     DateTime     @default(now())
+  items         TicketItem[]
 }
 
 model TicketItem {

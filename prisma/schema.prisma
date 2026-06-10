@@ -1,0 +1,97 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  LAUNDRY
+}
+
+enum TicketStatus {
+  PENDING
+  DELIVERED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(LAUNDRY)
+  createdAt    DateTime @default(now())
+}
+
+model LinenType {
+  id          String              @id @default(uuid())
+  name        String              @unique
+  unit        String
+  batches     Batch[]
+  circulations LinenCirculation[]
+  ticketItems TicketItem[]
+  createdAt   DateTime            @default(now())
+}
+
+model Batch {
+  id                String             @id @default(uuid())
+  code              String             @unique
+  linenTypeId       String
+  linenType         LinenType          @relation(fields: [linenTypeId], references: [id])
+  totalQuantity     Int
+  remainingQuantity Int
+  importedAt        DateTime
+  createdAt         DateTime           @default(now())
+  circulations      LinenCirculation[]
+}
+
+model LinenCirculation {
+  id                String             @id @default(uuid())
+  batchId           String
+  batch             Batch              @relation(fields: [batchId], references: [id])
+  linenTypeId       String
+  linenType         LinenType          @relation(fields: [linenTypeId], references: [id])
+  startUseDate      DateTime
+  originalQuantity  Int
+  activeQuantity    Int
+  discardedQuantity Int                @default(0)
+  createdAt         DateTime           @default(now())
+  discardLogs       LinenDiscardLog[]
+}
+
+model LinenDiscardLog {
+  id                 String           @id @default(uuid())
+  linenCirculationId String
+  circulation        LinenCirculation @relation(fields: [linenCirculationId], references: [id])
+  quantity           Int
+  reason             String?
+  loggedAt           DateTime         @default(now())
+}
+
+model Ward {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  qrToken     String   @unique
+  tickets     Ticket[]
+  createdAt   DateTime @default(now())
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  wardId       String
+  ward         Ward         @relation(fields: [wardId], references: [id])
+  status       TicketStatus @default(PENDING)
+  deliveryDate DateTime
+  createdAt    DateTime     @default(now())
+  items        TicketItem[]
+}
+
+model TicketItem {
+  id          String    @id @default(uuid())
+  ticketId    String
+  ticket      Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  linenTypeId String
+  linenType   LinenType @relation(fields: [linenTypeId], references: [id])
+  quantity    Int
+}

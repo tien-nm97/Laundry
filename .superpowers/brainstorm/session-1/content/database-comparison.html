@@ -1,0 +1,55 @@
+<h2>So sánh: SQLite vs Supabase (PostgreSQL)</h2>
+<p class="subtitle">Hãy cân nhắc ưu nhược điểm của hai phương án cơ sở dữ liệu dưới đây để lựa chọn môi trường phát triển phù hợp.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header" style="background:#4b5563;color:white;">Phương án 1: SQLite (Cơ sở dữ liệu nhúng)</div>
+    <div class="mockup-body" style="padding: 1.5rem;">
+      <h3 style="color:#4b5563;margin-top:0;">Đặc trưng: Lưu dữ liệu vào file cục bộ trong dự án</h3>
+      
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Ưu điểm (Dev cực nhanh)</h4>
+          <ul>
+            <li><strong>Zero Setup:</strong> Không cần cài đặt server hay tài khoản, chạy được ngay lập tức.</li>
+            <li><strong>Offline:</strong> Phát triển và chạy kiểm thử (Jest) không cần kết nối mạng.</li>
+            <li><strong>Tốc độ:</strong> Đọc ghi file cục bộ siêu nhanh khi test.</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Nhược điểm</h4>
+          <ul>
+            <li><strong>Tính năng:</strong> Hạn chế các kiểu dữ liệu nâng cao của Postgres (ví dụ: Enum, JSON - Prisma phải giả lập bằng Text/String).</li>
+            <li><strong>Không online:</strong> Dữ liệu chỉ nằm trên máy cá nhân, không chia sẻ online được.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup" style="border-color: #10b981;">
+    <div class="mockup-header" style="background:#10b981;color:white;">Phương án 2: Supabase (PostgreSQL đám mây)</div>
+    <div class="mockup-body" style="padding: 1.5rem;">
+      <h3 style="color:#10b981;margin-top:0;">Đặc trưng: PostgreSQL thực tế chạy online</h3>
+      
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Ưu điểm (Chuẩn Production)</h4>
+          <ul>
+            <li><strong>Full PostgreSQL:</strong> Hỗ trợ 100% tính năng, kiểu dữ liệu thực tế (Enum, JSON, quan hệ phức tạp).</li>
+            <li><strong>Trực quan:</strong> Có giao diện quản lý DB (Table Editor) online của Supabase rất đẹp.</li>
+            <li><strong>Sẵn sàng chạy thật:</strong> Chạy thực tế được ngay.</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Nhược điểm</h4>
+          <ul>
+            <li><strong>Cần Internet:</strong> Bắt buộc phải có mạng để kết nối DB.</li>
+            <li><strong>Độ trễ (Latency):</strong> Chạy kiểm thử tự động (tests) có thể hơi chậm do phải gọi qua mạng.</li>
+            <li><strong>Cần đăng ký:</strong> Mất 2-3 phút tạo tài khoản và copy link kết nối.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

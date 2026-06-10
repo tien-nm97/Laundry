@@ -1,0 +1,61 @@
+<h2>Phương án thiết kế trường "Nhân viên yêu cầu"</h2>
+<p class="subtitle">Vui lòng xem các phương án dưới đây và chọn phương án bạn mong muốn trong terminal</p>
+
+<div class="options" data-multiselect="false">
+  <div class="option" data-choice="static_list" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Danh sách tĩnh cố định (Static List)</h3>
+      <p>Sử dụng một danh sách nhân viên hộ lý cố định chung cho toàn bộ bệnh viện (hoặc theo từng khoa). Không cần quản trị phức tạp.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="db_table" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Quản lý trong Database (DB Table)</h3>
+      <p>Tạo một bảng <code>Orderly</code> trong cơ sở dữ liệu để Admin có thể thêm/xóa/sửa danh sách nhân viên hộ lý của từng khoa phòng từ trang Admin.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="free_text_hybrid" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Chọn từ danh sách HOẶC tự nhập (Hybrid Combobox)</h3>
+      <p>Cho phép chọn từ danh sách nhân viên có sẵn hoặc chọn mục "Khác..." để tự nhập tên nhân viên mới bằng tay nếu chưa có tên trong hệ thống.</p>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top: 2rem;">
+  <div class="mockup-header">Minh họa giao diện Phiếu Yêu Cầu của Khoa phòng</div>
+  <div class="mockup-body" style="padding: 1.5rem; background: #f8fafc; color: #1e293b; font-family: sans-serif;">
+    <div style="max-width: 400px; margin: 0 auto; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <div style="text-align: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem; margin-bottom: 1rem;">
+        <span style="font-size: 1.25rem; font-weight: 800; color: #0066b2;">Yêu cầu Đồ vải Hàng ngày</span>
+        <div style="font-size: 0.75rem; font-weight: bold; color: #0066b2; background: #eff6ff; padding: 2px 8px; border-radius: 9999px; width: fit-content; margin: 4px auto 0;">Khoa Cấp Cứu</div>
+      </div>
+      
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.75rem; font-weight: bold; color: #64748b; margin-bottom: 4px; text-transform: uppercase;">Nhân viên yêu cầu</label>
+        <select style="width: 100%; border: 1px solid #cbd5e1; padding: 8px; border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: white; outline: none;">
+          <option>-- Chọn hộ lý yêu cầu --</option>
+          <option>Nguyễn Thị Hồng (Hộ lý trưởng)</option>
+          <option>Trần Văn Minh</option>
+          <option>Lê Thị Lan</option>
+          <option>Khác (Tự nhập tên...)</option>
+        </select>
+      </div>
+
+      <div style="border-top: 1px solid #f1f5f9; padding-top: 0.75rem;">
+        <span style="font-size: 0.75rem; font-weight: bold; color: #64748b; text-transform: uppercase;">Chọn số lượng đồ vải:</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+          <span style="font-size: 0.875rem; font-weight: 600;">Ga trải giường bệnh nhân</span>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button type="button" style="width: 24px; height: 24px; background: #e2e8f0; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">-</button>
+            <span style="font-weight: 800; font-size: 0.875rem; min-width: 24px; text-align: center;">10</span>
+            <button type="button" style="width: 24px; height: 24px; background: #e2e8f0; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

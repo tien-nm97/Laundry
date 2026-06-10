@@ -1,3 +1,6 @@
+/**
+ * @jest-environment node
+ */
 import { prisma } from '../lib/db'
 
 describe('Database Connection Test', () => {

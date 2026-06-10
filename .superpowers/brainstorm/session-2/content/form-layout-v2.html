@@ -1,0 +1,87 @@
+<h2>Đề xuất giao diện Phiếu Yêu Cầu động (Table List + Nút "+")</h2>
+<p class="subtitle">Giao diện cho phép chọn Hộ lý yêu cầu (tải từ DB) và thêm từng loại đồ vải động vào bảng</p>
+
+<div class="mockup" style="max-width: 500px; margin: 0 auto; background: #f8fafc;">
+  <div class="mockup-header">Màn hình yêu cầu đồ vải của Khoa (Mobile View)</div>
+  <div class="mockup-body" style="padding: 1.5rem; background: #f1f5f9; color: #1e293b; font-family: sans-serif;">
+    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+      <!-- Ward Title -->
+      <div style="text-align: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; margin-bottom: 1.25rem;">
+        <span style="font-size: 1.25rem; font-weight: 850; color: #0066b2; tracking: -0.025em;">YÊU CẦU ĐỒ VẢI HÀNG NGÀY</span>
+        <div style="font-size: 0.75rem; font-weight: 800; color: #0066b2; background: #e0f2fe; padding: 3px 12px; border-radius: 9999px; width: fit-content; margin: 6px auto 0;">
+          🏥 Khoa Cấp Cứu
+        </div>
+      </div>
+
+      <!-- Requester Dropdown -->
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 6px; text-transform: uppercase; tracking: 0.05em;">Nhân viên yêu cầu (Hộ lý)</label>
+        <select style="width: 100%; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 10px; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: white; outline: none; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+          <option>-- Chọn nhân viên yêu cầu (DB) --</option>
+          <option>Nguyễn Thị Hồng</option>
+          <option>Trần Văn Minh</option>
+          <option>Lê Thị Lan</option>
+          <option>Phạm Đức Hùng</option>
+        </select>
+      </div>
+
+      <!-- Linen Items Table List -->
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 6px; text-transform: uppercase; tracking: 0.05em;">Danh sách đồ vải yêu cầu</label>
+        
+        <!-- Table displaying selected items -->
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem; text-align: left; margin-bottom: 1rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: bold;">
+              <th style="padding: 8px 4px;">Loại đồ vải</th>
+              <th style="padding: 8px 4px; text-align: center; width: 80px;">Số lượng</th>
+              <th style="padding: 8px 4px; text-align: right; width: 50px;">Xóa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px 4px; font-weight: 600; color: #334155;">Ga trải giường bệnh nhân</td>
+              <td style="padding: 10px 4px; text-align: center; font-weight: 800; color: #0066b2;">15 Cái</td>
+              <td style="padding: 10px 4px; text-align: right;">
+                <button type="button" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 1.1rem;">×</button>
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px 4px; font-weight: 600; color: #334155;">Vỏ gối</td>
+              <td style="padding: 10px 4px; text-align: center; font-weight: 800; color: #0066b2;">15 Cái</td>
+              <td style="padding: 10px 4px; text-align: right;">
+                <button type="button" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 1.1rem;">×</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Row builder (form to append new item) -->
+        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 12px; space-y: 3px;">
+          <span style="display: block; font-size: 0.7rem; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Thêm loại đồ vải khác:</span>
+          
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <!-- Select type -->
+            <select style="flex: 2; border: 1px solid #cbd5e1; padding: 8px; border-radius: 8px; font-size: 0.8rem; background: white;">
+              <option>-- Chọn loại đồ vải --</option>
+              <option>Vỏ chăn bông</option>
+              <option>Áo choàng phẫu thuật</option>
+              <option>Đồng phục bệnh nhân</option>
+            </select>
+            
+            <!-- Qty input -->
+            <input type="number" placeholder="SL" style="width: 60px; border: 1px solid #cbd5e1; padding: 8px; border-radius: 8px; font-size: 0.8rem; text-align: center; font-weight: bold;" />
+            
+            <!-- Plus button -->
+            <button type="button" style="background: #0066b2; color: white; border: none; border-radius: 8px; width: 34px; height: 34px; font-weight: 900; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,102,178,0.2);">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Request -->
+      <button type="button" style="width: 100%; bg-color: #0066b2; background: #0066b2; color: white; border: none; border-radius: 12px; padding: 12px; font-weight: 800; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 6px rgba(0,102,178,0.15); transition: all 0.2s;">
+        Gửi phiếu yêu cầu đồ vải
+      </button>
+    </div>
+  </div>
+</div>

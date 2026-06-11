@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     })
 
     // Fetch active orderlies
-    const orderlies = await prisma.orderly.findMany({
+    const orderlies = await prisma.staff.findMany({
       orderBy: { name: 'asc' },
     })
 

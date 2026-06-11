@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const orderlies = await prisma.orderly.findMany({
+    const orderlies = await prisma.staff.findMany({
       orderBy: { name: 'asc' },
     })
     return NextResponse.json(orderlies)
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const existing = await prisma.orderly.findUnique({
+    const existing = await prisma.staff.findUnique({
       where: { name: name.trim() },
     })
     if (existing) {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const newOrderly = await prisma.orderly.create({
+    const newOrderly = await prisma.staff.create({
       data: { name: name.trim() },
     })
 
@@ -73,7 +73,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Thiếu ID hộ lý cần xóa' }, { status: 400 })
     }
 
-    await prisma.orderly.delete({
+    await prisma.staff.delete({
       where: { id },
     })
 

@@ -52,7 +52,7 @@ describe('Admin Orderlies API', () => {
     const res = await DELETE(req)
     expect(res.status).toBe(200)
 
-    const check = await prisma.orderly.findUnique({ where: { id: orderlyId } })
+    const check = await prisma.staff.findUnique({ where: { id: orderlyId } })
     expect(check).toBeNull()
   })
 })

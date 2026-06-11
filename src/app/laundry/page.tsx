@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useRealtimeSync } from '@/lib/useRealtimeSync'
 
 interface LinenType {
   id: string
@@ -101,6 +102,13 @@ export default function LaundryDashboard() {
     if (activeTab === 'discard') fetchCirculations()
     if (activeTab === 'report') fetchReports()
   }
+
+  // Supabase Realtime: auto-refresh current tab when DB changes
+  useRealtimeSync(
+    ['Ticket', 'TicketItem', 'Batch', 'LinenCirculation', 'LinenDiscardLog'],
+    () => loadTabData(),
+    `laundry-${activeTab}-sync`
+  )
 
   const showFeedback = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRealtimeSync } from '@/lib/useRealtimeSync'
 
 interface LinenType {
   id: string
@@ -49,6 +50,17 @@ export default function AdminDashboard() {
     fetchWards()
     fetchOrderlies()
   }, [])
+
+  // Supabase Realtime: auto-refresh when DB changes
+  useRealtimeSync(
+    ['LinenType', 'Khoa', 'Staff'],
+    () => {
+      fetchLinenTypes()
+      fetchWards()
+      fetchOrderlies()
+    },
+    'admin-dashboard-sync'
+  )
 
   const fetchLinenTypes = async () => {
     setLoadingTypes(true)

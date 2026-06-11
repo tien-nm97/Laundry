@@ -56,23 +56,23 @@ async function main() {
   const ltAoId = dbLinenTypes.find(lt => lt.name === 'Áo choàng phẫu thuật')?.id || '';
   const ltDongPhucId = dbLinenTypes.find(lt => lt.name === 'Đồng phục bệnh nhân')?.id || '';
 
-  // 3. Clean up existing Tickets, Wards & Orderlies
+  // 3. Clean up existing Tickets, Wards & Staff
   await prisma.ticketItem.deleteMany({});
   await prisma.ticket.deleteMany({});
   await prisma.ward.deleteMany({});
-  await prisma.orderly.deleteMany({});
-  console.log('Cleaned up old tickets, wards, and orderlies.');
+  await prisma.staff.deleteMany({});
+  console.log('Cleaned up old tickets, wards, and staff.');
 
-  // Seed Orderlies
+  // Seed Staff (Orderlies)
   const orderlies = [
     { name: 'Nguyễn Văn Hộ lý' },
     { name: 'Trần Thị Hộ lý' },
     { name: 'Lê Văn Hộ lý' },
   ];
   for (const o of orderlies) {
-    await prisma.orderly.create({ data: o });
+    await prisma.staff.create({ data: o });
   }
-  console.log('Seed orderlies completed.');
+  console.log('Seed staff completed.');
 
   // 4. Seed Wards
   const wards = [

@@ -15,7 +15,7 @@ describe('JWT Utilities', () => {
   });
 
   it('should sign and verify a payload successfully', async () => {
-    const payload = { userId: '123', username: 'admin', role: 'ADMIN' };
+    const payload = { userId: '123', username: 'admin', role: 'ADMIN' as const };
     const token = await signToken(payload);
     expect(typeof token).toBe('string');
 
@@ -34,7 +34,7 @@ describe('JWT Utilities', () => {
   it('should return null for an expired token', async () => {
     // We can sign a token with a short expiration if signToken supports custom expiration,
     // or just test that an expired token fails. Let's make signToken accept a custom expiration option
-    const payload = { userId: '456', username: 'laundry', role: 'LAUNDRY' };
+    const payload = { userId: '456', username: 'laundry', role: 'LAUNDRY' as const };
     // Pass custom expiration (e.g. -1s for expired token)
     const token = await signToken(payload, '-1s');
     const verified = await verifyToken(token);

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRealtimeSync } from '@/lib/useRealtimeSync'
 
 interface LinenType {
   id: string
@@ -39,6 +40,15 @@ export default function AdminBatches() {
     fetchBatches()
     fetchLinenTypes()
   }, [])
+
+  // Supabase Realtime: auto-refresh when DB changes
+  useRealtimeSync(
+    ['Batch', 'LinenType'],
+    () => {
+      fetchBatches()
+    },
+    'admin-batches-sync'
+  )
 
   const fetchBatches = async () => {
     setLoadingBatches(true)

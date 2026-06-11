@@ -1,19 +1,9 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-enum Role {
-  ADMIN
-  LAUNDRY
-}
-
-enum TicketStatus {
-  PENDING
-  DELIVERED
+datasource db {
+  provider = "postgresql"
 }
 
 model User {
@@ -25,80 +15,92 @@ model User {
 }
 
 model LinenType {
-  id          String              @id @default(uuid())
-  name        String              @unique
-  unit        String
-  batches     Batch[]
+  id           String             @id @default(uuid())
+  name         String             @unique
+  unit         String
+  createdAt    DateTime           @default(now())
+  batches      Batch[]
   circulations LinenCirculation[]
-  ticketItems TicketItem[]
-  createdAt   DateTime            @default(now())
+  ticketItems  TicketItem[]
 }
 
 model Batch {
   id                String             @id @default(uuid())
   code              String             @unique
   linenTypeId       String
-  linenType         LinenType          @relation(fields: [linenTypeId], references: [id])
   totalQuantity     Int
   remainingQuantity Int
   importedAt        DateTime
   createdAt         DateTime           @default(now())
+  linenType         LinenType          @relation(fields: [linenTypeId], references: [id])
   circulations      LinenCirculation[]
 }
 
 model LinenCirculation {
-  id                String             @id @default(uuid())
+  id                String            @id @default(uuid())
   batchId           String
-  batch             Batch              @relation(fields: [batchId], references: [id])
   linenTypeId       String
-  linenType         LinenType          @relation(fields: [linenTypeId], references: [id])
   startUseDate      DateTime
   originalQuantity  Int
   activeQuantity    Int
-  discardedQuantity Int                @default(0)
-  createdAt         DateTime           @default(now())
+  discardedQuantity Int               @default(0)
+  createdAt         DateTime          @default(now())
+  batch             Batch             @relation(fields: [batchId], references: [id])
+  linenType         LinenType         @relation(fields: [linenTypeId], references: [id])
   discardLogs       LinenDiscardLog[]
 }
 
 model LinenDiscardLog {
   id                 String           @id @default(uuid())
   linenCirculationId String
-  circulation        LinenCirculation @relation(fields: [linenCirculationId], references: [id])
   quantity           Int
   reason             String?
   loggedAt           DateTime         @default(now())
-}
-
-model Orderly {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
+  circulation        LinenCirculation @relation(fields: [linenCirculationId], references: [id])
 }
 
 model Ward {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  qrToken     String   @unique
-  tickets     Ticket[]
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  name      String   @unique
+  qrToken   String   @unique
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+
+  @@map("Khoa")
 }
 
 model Ticket {
   id            String       @id @default(uuid())
   wardId        String
-  ward          Ward         @relation(fields: [wardId], references: [id])
   status        TicketStatus @default(PENDING)
   requesterName String
   deliveryDate  DateTime
   createdAt     DateTime     @default(now())
+  ward          Ward         @relation(fields: [wardId], references: [id])
   items         TicketItem[]
 }
 
 model TicketItem {
   id          String    @id @default(uuid())
   ticketId    String
-  ticket      Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   linenTypeId String
-  linenType   LinenType @relation(fields: [linenTypeId], references: [id])
   quantity    Int
+  linenType   LinenType @relation(fields: [linenTypeId], references: [id])
+  ticket      Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model Staff {
+  id        String   @id(map: "Orderly_pkey") @default(uuid())
+  name      String   @unique(map: "Orderly_name_key")
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  LAUNDRY
+}
+
+enum TicketStatus {
+  PENDING
+  DELIVERED
 }

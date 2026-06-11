@@ -13,17 +13,22 @@ const poolConfig = {
   ssl: {
     rejectUnauthorized: false, // Ignore self-signed certificate validation errors on Supabase
   },
+  // Limit pool size for PgBouncer transaction mode compatibility
+  max: 1,
+}
+
+function createPrismaClient() {
+  const pool = new Pool(poolConfig)
+  const adapter = new PrismaPg(pool)
+  return new PrismaClient({ adapter })
 }
 
 if (process.env.NODE_ENV === 'production') {
-  const pool = new Pool(poolConfig)
-  const adapter = new PrismaPg(pool)
-  prisma = new PrismaClient({ adapter })
+  prisma = createPrismaClient()
 } else {
+  // In dev mode, avoid re-creating client on hot reload (keeps connection stable)
   if (!globalForPrisma.prisma) {
-    const pool = new Pool(poolConfig)
-    const adapter = new PrismaPg(pool)
-    globalForPrisma.prisma = new PrismaClient({ adapter })
+    globalForPrisma.prisma = createPrismaClient()
   }
   prisma = globalForPrisma.prisma
 }

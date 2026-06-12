@@ -50,11 +50,11 @@ async function main() {
 
   // Fetch all linen types to link in tickets
   const dbLinenTypes = await prisma.linenType.findMany();
-  const ltGaId = dbLinenTypes.find(lt => lt.name === 'Ga trải giường bệnh nhân')?.id || '';
-  const ltChanId = dbLinenTypes.find(lt => lt.name === 'Vỏ chăn bông')?.id || '';
-  const ltGoiId = dbLinenTypes.find(lt => lt.name === 'Vỏ gối')?.id || '';
-  const ltAoId = dbLinenTypes.find(lt => lt.name === 'Áo choàng phẫu thuật')?.id || '';
-  const ltDongPhucId = dbLinenTypes.find(lt => lt.name === 'Đồng phục bệnh nhân')?.id || '';
+  const ltGaId = dbLinenTypes.find((lt: any) => lt.name === 'Ga trải giường bệnh nhân')?.id || '';
+  const ltChanId = dbLinenTypes.find((lt: any) => lt.name === 'Vỏ chăn bông')?.id || '';
+  const ltGoiId = dbLinenTypes.find((lt: any) => lt.name === 'Vỏ gối')?.id || '';
+  const ltAoId = dbLinenTypes.find((lt: any) => lt.name === 'Áo choàng phẫu thuật')?.id || '';
+  const ltDongPhucId = dbLinenTypes.find((lt: any) => lt.name === 'Đồng phục bệnh nhân')?.id || '';
 
   // 3. Clean up existing Tickets, Wards & Staff
   await prisma.ticketItem.deleteMany({});

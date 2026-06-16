@@ -18,8 +18,9 @@ interface Ward {
 }
 
 interface Orderly {
-  id: string
-  name: string
+  id_nhanvien: string
+  nhanvien: string
+  hientrang: string
   createdAt: string
 }
 
@@ -33,6 +34,7 @@ export default function AdminDashboard() {
   const [ltUnit, setLtUnit] = useState('Cái')
   const [wardName, setWardName] = useState('')
   const [orderlyName, setOrderlyName] = useState('')
+  const [orderlyStatus, setOrderlyStatus] = useState('Đang làm')
 
   // Loading & feedback states
   const [loadingTypes, setLoadingTypes] = useState(true)
@@ -116,13 +118,17 @@ export default function AdminDashboard() {
       const res = await fetch('/api/admin/orderlies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: orderlyName.trim() }),
+        body: JSON.stringify({
+          nhanvien: orderlyName.trim(),
+          hientrang: orderlyStatus,
+        }),
       })
       const data = await res.json()
 
       if (res.ok) {
         setOrderlyName('')
-        showFeedback('success', `Đã thêm hộ lý: ${data.name}`)
+        setOrderlyStatus('Đang làm')
+        showFeedback('success', `Đã thêm hộ lý: ${data.nhanvien}`)
         fetchOrderlies()
       } else {
         showFeedback('error', data.error || 'Lỗi khi thêm hộ lý')
@@ -401,16 +407,29 @@ export default function AdminDashboard() {
           {/* Form */}
           <form onSubmit={handleCreateOrderly} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
             <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Thêm hộ lý mới</h3>
-            <div>
-              <label className="block text-xxs text-slate-500 mb-1 font-semibold">Họ và tên nhân viên</label>
-              <input
-                type="text"
-                value={orderlyName}
-                onChange={(e) => setOrderlyName(e.target.value)}
-                placeholder="Ví dụ: Nguyễn Văn A..."
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                required
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Họ và tên nhân viên</label>
+                <input
+                  type="text"
+                  value={orderlyName}
+                  onChange={(e) => setOrderlyName(e.target.value)}
+                  placeholder="Ví dụ: Nguyễn Văn A..."
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Hiện trạng</label>
+                <select
+                  value={orderlyStatus}
+                  onChange={(e) => setOrderlyStatus(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
+                >
+                  <option value="Đang làm">Đang làm</option>
+                  <option value="Nghỉ việc">Nghỉ việc</option>
+                </select>
+              </div>
             </div>
             <button
               type="submit"
@@ -432,17 +451,31 @@ export default function AdminDashboard() {
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-4 py-3 font-bold text-slate-500">Họ tên nhân viên</th>
-                      <th className="px-4 py-3 font-bold text-slate-500 w-20 text-center">Thao tác</th>
+                      <th className="px-3 py-3 font-bold text-slate-500">Mã hộ lý</th>
+                      <th className="px-3 py-3 font-bold text-slate-500">Họ tên nhân viên</th>
+                      <th className="px-3 py-3 font-bold text-slate-500 w-24 text-center">Hiện trạng</th>
+                      <th className="px-3 py-3 font-bold text-slate-500 w-16 text-center">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {orderlies.map((o) => (
-                      <tr key={o.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-slate-700">{o.name}</td>
-                        <td className="px-4 py-3 text-center">
+                      <tr key={o.id_nhanvien} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-3 py-3 font-mono text-slate-400 text-xxs truncate max-w-[80px]" title={o.id_nhanvien}>
+                          {o.id_nhanvien.split('-')[0]}
+                        </td>
+                        <td className="px-3 py-3 font-semibold text-slate-700">{o.nhanvien}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-xxs font-extrabold border ${
+                            o.hientrang === 'Đang làm'
+                              ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                              : 'bg-rose-50 border-rose-100 text-rose-600'
+                          }`}>
+                            {o.hientrang}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
                           <button
-                            onClick={() => handleDeleteOrderly(o.id)}
+                            onClick={() => handleDeleteOrderly(o.id_nhanvien)}
                             className="text-rose-600 hover:text-rose-800 font-bold transition-colors cursor-pointer"
                           >
                             Xóa

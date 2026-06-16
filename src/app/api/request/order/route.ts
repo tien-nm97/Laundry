@@ -38,7 +38,8 @@ export async function GET(request: Request) {
 
     // Fetch active orderlies
     const orderlies = await prisma.staff.findMany({
-      orderBy: { name: 'asc' },
+      where: { hientrang: 'Đang làm' },
+      orderBy: { nhanvien: 'asc' },
     })
 
     return NextResponse.json({

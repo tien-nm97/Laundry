@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
   try {
     const orderlies = await prisma.staff.findMany({
-      orderBy: { name: 'asc' },
+      orderBy: { nhanvien: 'asc' },
     })
     return NextResponse.json(orderlies)
   } catch (error: any) {
@@ -29,9 +29,9 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { name } = body
+    const { nhanvien, hientrang } = body
 
-    if (!name || !name.trim()) {
+    if (!nhanvien || !nhanvien.trim()) {
       return NextResponse.json(
         { error: 'Tên hộ lý là bắt buộc' },
         { status: 400 }
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     const existing = await prisma.staff.findUnique({
-      where: { name: name.trim() },
+      where: { nhanvien: nhanvien.trim() },
     })
     if (existing) {
       return NextResponse.json(
@@ -49,7 +49,10 @@ export async function POST(request: Request) {
     }
 
     const newOrderly = await prisma.staff.create({
-      data: { name: name.trim() },
+      data: {
+        nhanvien: nhanvien.trim(),
+        hientrang: hientrang || 'Đang làm',
+      },
     })
 
     return NextResponse.json(newOrderly, { status: 201 })
@@ -74,7 +77,7 @@ export async function DELETE(request: Request) {
     }
 
     await prisma.staff.delete({
-      where: { id },
+      where: { id_nhanvien: id },
     })
 
     return NextResponse.json({ message: 'Xóa hộ lý thành công' })

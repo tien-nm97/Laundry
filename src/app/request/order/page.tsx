@@ -257,8 +257,8 @@ function RequestOrderForm() {
             >
               <option value="">-- Chọn nhân viên yêu cầu --</option>
               {orderlies.map((o) => (
-                <option key={o.id} value={o.name}>
-                  {o.name}
+                <option key={o.id_nhanvien} value={o.nhanvien}>
+                  {o.nhanvien}
                 </option>
               ))}
             </select>

@@ -22,6 +22,8 @@ model LinenType {
   batches      Batch[]
   circulations LinenCirculation[]
   ticketItems  TicketItem[]
+
+  @@map("Loại đồ vải")
 }
 
 model Batch {
@@ -90,9 +92,10 @@ model TicketItem {
 }
 
 model Staff {
-  id        String   @id(map: "Orderly_pkey") @default(uuid())
-  name      String   @unique(map: "Orderly_name_key")
-  createdAt DateTime @default(now())
+  id_nhanvien String   @id(map: "Orderly_pkey") @default(uuid())
+  nhanvien    String   @unique(map: "Orderly_name_key")
+  hientrang   String   @default("Đang làm")
+  createdAt   DateTime @default(now())
 }
 
 enum Role {

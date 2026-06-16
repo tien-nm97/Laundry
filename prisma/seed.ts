@@ -65,9 +65,9 @@ async function main() {
 
   // Seed Staff (Orderlies)
   const orderlies = [
-    { name: 'Nguyễn Văn Hộ lý' },
-    { name: 'Trần Thị Hộ lý' },
-    { name: 'Lê Văn Hộ lý' },
+    { nhanvien: 'Nguyễn Văn Hộ lý', hientrang: 'Đang làm' },
+    { nhanvien: 'Trần Thị Hộ lý', hientrang: 'Đang làm' },
+    { nhanvien: 'Lê Văn Hộ lý', hientrang: 'Đang làm' },
   ];
   for (const o of orderlies) {
     await prisma.staff.create({ data: o });

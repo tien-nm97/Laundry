@@ -30,12 +30,12 @@ describe('Admin Orderlies API', () => {
   }
 
   it('should create an orderly', async () => {
-    const req = createRequest('POST', { name: 'Test Orderly A' }, adminToken)
+    const req = createRequest('POST', { nhanvien: 'Test Orderly A' }, adminToken)
     const res = await POST(req)
     expect(res.status).toBe(201)
     const data = await res.json()
-    expect(data.name).toBe('Test Orderly A')
-    orderlyId = data.id
+    expect(data.nhanvien).toBe('Test Orderly A')
+    orderlyId = data.id_nhanvien
   })
 
   it('should list all orderlies', async () => {
@@ -43,7 +43,7 @@ describe('Admin Orderlies API', () => {
     const res = await GET(req)
     expect(res.status).toBe(200)
     const data = await res.json()
-    expect(data.some((o: any) => o.name === 'Test Orderly A')).toBe(true)
+    expect(data.some((o: any) => o.nhanvien === 'Test Orderly A')).toBe(true)
   })
 
   it('should delete an orderly', async () => {
@@ -52,7 +52,7 @@ describe('Admin Orderlies API', () => {
     const res = await DELETE(req)
     expect(res.status).toBe(200)
 
-    const check = await prisma.staff.findUnique({ where: { id: orderlyId } })
+    const check = await prisma.staff.findUnique({ where: { id_nhanvien: orderlyId } })
     expect(check).toBeNull()
   })
 })

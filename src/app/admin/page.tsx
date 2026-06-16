@@ -45,12 +45,14 @@ export default function AdminDashboard() {
   const [submittingOrderly, setSubmittingOrderly] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [origin, setOrigin] = useState('')
 
   // Fetch initial data
   useEffect(() => {
     fetchLinenTypes()
     fetchWards()
     fetchOrderlies()
+    setOrigin(window.location.origin)
   }, [])
 
   // Supabase Realtime: auto-refresh when DB changes
@@ -369,29 +371,50 @@ export default function AdminDashboard() {
               <div className="text-center py-8 text-slate-400 text-xs font-semibold">Chưa có khoa phòng.</div>
             ) : (
               <div className="space-y-2">
-                {wards.map((ward) => (
-                  <div
-                    key={ward.id}
-                    className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-all duration-150"
-                  >
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-800">{ward.name}</h4>
-                      <p className="text-xxs text-slate-400 font-semibold mt-0.5">
-                        Ngày tạo: {new Date(ward.createdAt).toLocaleDateString('vi-VN')}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleCopyQRLink(ward)}
-                      className={`px-3 py-1.5 rounded-lg text-xxs font-extrabold border transition-all duration-150 flex items-center gap-1 cursor-pointer ${
-                        copiedId === ward.id
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-[#0066b2]/50 hover:text-[#0066b2]'
-                      }`}
+                {wards.map((ward) => {
+                  const qrLink = origin ? `${origin}/request/order?wardId=${ward.id}&token=${ward.qrToken}` : '';
+                  return (
+                    <div
+                      key={ward.id}
+                      className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-all duration-150"
                     >
-                      {copiedId === ward.id ? 'Đã sao chép!' : 'Sao chép link QR'}
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        {/* Thumbnail QR Code */}
+                        {origin && (
+                          <a
+                            href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrLink)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 block bg-white p-1 rounded-lg border border-slate-200 hover:border-[#0066b2] transition-colors cursor-zoom-in"
+                            title="Bấm để phóng to / in mã QR"
+                          >
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrLink)}`}
+                              alt={`QR ${ward.name}`}
+                              className="w-12 h-12 block"
+                            />
+                          </a>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-800">{ward.name}</h4>
+                          <p className="text-xxs text-slate-400 font-semibold mt-0.5">
+                            Ngày tạo: {new Date(ward.createdAt).toLocaleDateString('vi-VN')}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleCopyQRLink(ward)}
+                        className={`px-3 py-1.5 rounded-lg text-xxs font-extrabold border transition-all duration-150 flex items-center gap-1 cursor-pointer ${
+                          copiedId === ward.id
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-[#0066b2]/50 hover:text-[#0066b2]'
+                        }`}
+                      >
+                        {copiedId === ward.id ? 'Đã sao chép!' : 'Sao chép link QR'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

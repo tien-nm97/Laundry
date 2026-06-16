@@ -263,7 +263,11 @@ function RequestOrderForm() {
             </label>
             <select
               value={requesterName}
-              onChange={(e) => setRequesterName(e.target.value)}
+              onChange={(e) => {
+                setRequesterName(e.target.value)
+                e.target.setCustomValidity('')
+              }}
+              onInvalid={(e) => (e.target as HTMLSelectElement).setCustomValidity('Vui lòng chọn nhân viên yêu cầu.')}
               className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all cursor-pointer"
               required
             >
@@ -294,7 +298,9 @@ function RequestOrderForm() {
                           const newRows = [...rows]
                           newRows[index].linenTypeId = e.target.value
                           setRows(newRows)
+                          e.target.setCustomValidity('')
                         }}
+                        onInvalid={(e) => (e.target as HTMLSelectElement).setCustomValidity('Vui lòng chọn loại đồ vải.')}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all cursor-pointer"
                         required
                       >
@@ -316,7 +322,9 @@ function RequestOrderForm() {
                           const newRows = [...rows]
                           newRows[index].quantity = val as number
                           setRows(newRows)
+                          e.target.setCustomValidity('')
                         }}
+                        onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Vui lòng nhập số lượng từ 1 trở lên.')}
                         placeholder="SL"
                         className="w-full text-center border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-950 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
                         required

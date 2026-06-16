@@ -278,7 +278,9 @@ function RequestOrderForm() {
 
           {/* Dynamic rows */}
           <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Danh sách đồ vải yêu cầu:</h3>
+            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+              Danh sách đồ vải yêu cầu <span className="text-rose-500">*</span>:
+            </h3>
             
             <div className="space-y-3">
               {rows.map((row, index) => {

@@ -28,7 +28,7 @@ model LinenType {
 
 model Batch {
   id                String             @id @default(uuid())
-  code              String             @unique
+  code              String
   linenTypeId       String
   totalQuantity     Int
   remainingQuantity Int

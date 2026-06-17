@@ -25,16 +25,18 @@ export default function AdminBatches() {
   const [linenTypes, setLinenTypes] = useState<LinenType[]>([])
 
   // Form states
-  const [code, setCode] = useState('')
   const [linenTypeId, setLinenTypeId] = useState('')
   const [totalQuantity, setTotalQuantity] = useState<number | ''>('')
   const [importedAt, setImportedAt] = useState(new Date().toISOString().split('T')[0])
+  const [importItems, setImportItems] = useState<{ linenTypeId: string; name: string; unit: string; totalQuantity: number }[]>([])
 
   // Loading & feedback states
   const [loadingBatches, setLoadingBatches] = useState(true)
   const [loadingTypes, setLoadingTypes] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const generatedCode = `BATCH-${importedAt.replace(/-/g, '')}`
 
   useEffect(() => {
     fetchBatches()
@@ -87,10 +89,48 @@ export default function AdminBatches() {
     setTimeout(() => setMessage(null), 4000)
   }
 
+  const handleAddItem = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!linenTypeId || !totalQuantity || Number(totalQuantity) <= 0) {
+      showFeedback('error', 'Vui lòng chọn loại đồ vải và nhập số lượng hợp lệ')
+      return
+    }
+
+    const selectedType = linenTypes.find(lt => lt.id === linenTypeId)
+    if (!selectedType) return
+
+    const existingIndex = importItems.findIndex(item => item.linenTypeId === linenTypeId)
+    if (existingIndex > -1) {
+      const updated = [...importItems]
+      updated[existingIndex].totalQuantity += Number(totalQuantity)
+      setImportItems(updated)
+    } else {
+      setImportItems([
+        ...importItems,
+        {
+          linenTypeId,
+          name: selectedType.name,
+          unit: selectedType.unit,
+          totalQuantity: Number(totalQuantity)
+        }
+      ])
+    }
+
+    setTotalQuantity('')
+  }
+
+  const handleRemoveItem = (index: number) => {
+    setImportItems(importItems.filter((_, i) => i !== index))
+  }
+
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!code.trim() || !linenTypeId || !totalQuantity || !importedAt) {
-      showFeedback('error', 'Vui lòng điền đầy đủ thông tin')
+    if (importItems.length === 0) {
+      showFeedback('error', 'Vui lòng thêm ít nhất một loại đồ vải vào danh sách nhập')
+      return
+    }
+    if (!importedAt) {
+      showFeedback('error', 'Vui lòng chọn ngày nhập kho')
       return
     }
 
@@ -100,18 +140,20 @@ export default function AdminBatches() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: code.trim(),
-          linenTypeId,
-          totalQuantity: Number(totalQuantity),
+          code: generatedCode,
           importedAt: new Date(importedAt).toISOString(),
+          items: importItems.map(item => ({
+            linenTypeId: item.linenTypeId,
+            totalQuantity: item.totalQuantity
+          }))
         }),
       })
       const data = await res.json()
 
       if (res.ok) {
-        setCode('')
+        setImportItems([])
         setTotalQuantity('')
-        showFeedback('success', `Đã nhập thành công lô hàng: ${data.code}`)
+        showFeedback('success', `Đã nhập thành công lô hàng: ${generatedCode}`)
         fetchBatches()
       } else {
         showFeedback('error', data.error || 'Lỗi khi nhập lô hàng')
@@ -174,46 +216,12 @@ export default function AdminBatches() {
 
             <form onSubmit={handleCreateBatch} className="space-y-4">
               <div>
-                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Mã lô nhập</label>
+                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Mã lô nhập (Tự động tạo)</label>
                 <input
                   type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="BATCH-2026-001"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Loại đồ vải</label>
-                {loadingTypes ? (
-                  <div className="text-xs text-slate-400 font-semibold py-2">Đang tải...</div>
-                ) : (
-                  <select
-                    value={linenTypeId}
-                    onChange={(e) => setLinenTypeId(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
-                    required
-                  >
-                    {linenTypes.map((lt) => (
-                      <option key={lt.id} value={lt.id}>
-                        {lt.name} ({lt.unit})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Tổng số lượng</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={totalQuantity}
-                  onChange={(e) => setTotalQuantity(e.target.value !== '' ? Number(e.target.value) : '')}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                  required
+                  value={generatedCode}
+                  readOnly
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-500 focus:outline-none transition-all cursor-not-allowed"
                 />
               </div>
 
@@ -228,12 +236,90 @@ export default function AdminBatches() {
                 />
               </div>
 
+              <div className="border-t border-slate-100 pt-4 mt-4 space-y-4">
+                <h3 className="text-xs font-extrabold text-slate-900">Chi tiết đồ vải nhập</h3>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="col-span-2">
+                    <label className="block text-xxs text-slate-500 mb-1 font-semibold">Loại đồ vải</label>
+                    {loadingTypes ? (
+                      <div className="text-xs text-slate-400 font-semibold py-2">Đang tải...</div>
+                    ) : (
+                      <select
+                        value={linenTypeId}
+                        onChange={(e) => setLinenTypeId(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
+                      >
+                        {linenTypes.map((lt) => (
+                          <option key={lt.id} value={lt.id}>
+                            {lt.name} ({lt.unit})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  
+                  <div className="col-span-1">
+                    <label className="block text-xxs text-slate-500 mb-1 font-semibold">Số lượng</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={totalQuantity}
+                      onChange={(e) => setTotalQuantity(e.target.value !== '' ? Number(e.target.value) : '')}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                      placeholder="SL"
+                    />
+                  </div>
+                  
+                  <div className="col-span-1 flex items-end">
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      className="w-full h-[34px] border border-dashed border-[#0066b2] hover:bg-blue-50/50 text-[#0066b2] font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>＋</span> Thêm loại
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {importItems.length > 0 && (
+                <div className="border border-slate-200 rounded-xl overflow-hidden mt-4">
+                  <table className="w-full border-collapse text-left text-xxs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="px-3 py-2 font-bold text-slate-500">Loại vải</th>
+                        <th className="px-3 py-2 font-bold text-slate-500 text-center">SL</th>
+                        <th className="px-3 py-2 font-bold text-slate-500 text-center">Xóa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {importItems.map((item, index) => (
+                        <tr key={index} className="hover:bg-slate-50/50">
+                          <td className="px-3 py-2 text-slate-700 font-medium">{item.name}</td>
+                          <td className="px-3 py-2 text-slate-600 font-bold text-center">{item.totalQuantity} {item.unit}</td>
+                          <td className="px-3 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(index)}
+                              className="text-red-500 hover:text-red-700 font-bold text-xs p-1 rounded hover:bg-red-50 transition-all cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={submitting}
-                className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-lg text-xs transition-all cursor-pointer"
+                disabled={submitting || importItems.length === 0}
+                className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-lg text-xs transition-all cursor-pointer mt-4"
               >
-                Nhập kho lô hàng
+                {submitting ? 'Đang nhập kho...' : 'Nhập kho lô hàng'}
               </button>
             </form>
           </div>

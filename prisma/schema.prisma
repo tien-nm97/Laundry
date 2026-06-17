@@ -95,6 +95,7 @@ model Staff {
   id_nhanvien String   @id(map: "Orderly_pkey") @default(uuid())
   nhanvien    String   @unique(map: "Orderly_name_key")
   hientrang   String   @default("Đang làm")
+  imageUrl    String?
   createdAt   DateTime @default(now())
 }
 

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { nhanvien, hientrang } = body
+    const { nhanvien, hientrang, imageUrl } = body
 
     if (!nhanvien || !nhanvien.trim()) {
       return NextResponse.json(
@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       data: {
         nhanvien: nhanvien.trim(),
         hientrang: hientrang || 'Đang làm',
+        imageUrl: imageUrl || null,
       },
     })
 

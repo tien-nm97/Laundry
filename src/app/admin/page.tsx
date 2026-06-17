@@ -21,6 +21,7 @@ interface Orderly {
   id_nhanvien: string
   nhanvien: string
   hientrang: string
+  imageUrl?: string | null
   createdAt: string
 }
 
@@ -34,7 +35,7 @@ export default function AdminDashboard() {
   const [ltUnit, setLtUnit] = useState('Cái')
   const [wardName, setWardName] = useState('')
   const [orderlyName, setOrderlyName] = useState('')
-  const [orderlyStatus, setOrderlyStatus] = useState('Đang làm')
+  const [orderlyImage, setOrderlyImage] = useState<string | null>(null)
 
   // Loading & feedback states
   const [loadingTypes, setLoadingTypes] = useState(true)
@@ -111,6 +112,46 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const MAX_WIDTH = 120
+          const MAX_HEIGHT = 120
+          let width = img.width
+          let height = img.height
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width
+              width = MAX_WIDTH
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height
+              height = MAX_HEIGHT
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7)
+            setOrderlyImage(compressedBase64)
+          }
+        }
+        img.src = event.target?.result as string
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   const handleCreateOrderly = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!orderlyName.trim()) return
@@ -122,14 +163,15 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nhanvien: orderlyName.trim(),
-          hientrang: orderlyStatus,
+          hientrang: 'Đang làm',
+          imageUrl: orderlyImage,
         }),
       })
       const data = await res.json()
 
       if (res.ok) {
         setOrderlyName('')
-        setOrderlyStatus('Đang làm')
+        setOrderlyImage(null)
         showFeedback('success', `Đã thêm hộ lý: ${data.nhanvien}`)
         fetchOrderlies()
       } else {
@@ -430,37 +472,49 @@ export default function AdminDashboard() {
           {/* Form */}
           <form onSubmit={handleCreateOrderly} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
             <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Thêm hộ lý mới</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Họ và tên nhân viên</label>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {/* Image Upload Area */}
+              <label className="relative flex flex-col items-center justify-center w-16 h-16 rounded-full border-2 border-dashed border-slate-300 hover:border-[#0066b2] bg-white cursor-pointer overflow-hidden transition-all shrink-0 shadow-inner group">
+                {orderlyImage ? (
+                  <img src={orderlyImage} alt="Avatar Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-slate-400 gap-0.5">
+                    <span className="text-sm font-bold">＋</span>
+                    <span className="text-[8px] font-bold uppercase tracking-wider">Ảnh</span>
+                  </div>
+                )}
                 <input
-                  type="text"
-                  value={orderlyName}
-                  onChange={(e) => setOrderlyName(e.target.value)}
-                  placeholder="Ví dụ: Nguyễn Văn A..."
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                  required
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
                 />
-              </div>
-              <div>
-                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Hiện trạng</label>
-                <select
-                  value={orderlyStatus}
-                  onChange={(e) => setOrderlyStatus(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
-                >
-                  <option value="Đang làm">Đang làm</option>
-                  <option value="Nghỉ việc">Nghỉ việc</option>
-                </select>
+              </label>
+
+              {/* Name and Button input */}
+              <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <div className="sm:col-span-3">
+                  <label className="block text-xxs text-slate-500 mb-1 font-semibold">Họ và tên nhân viên</label>
+                  <input
+                    type="text"
+                    value={orderlyName}
+                    onChange={(e) => setOrderlyName(e.target.value)}
+                    placeholder="Ví dụ: Nguyễn Văn A..."
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <button
+                    type="submit"
+                    disabled={submittingOrderly}
+                    className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer h-[34px]"
+                  >
+                    Thêm
+                  </button>
+                </div>
               </div>
             </div>
-            <button
-              type="submit"
-              disabled={submittingOrderly}
-              className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer"
-            >
-              Thêm nhân viên
-            </button>
           </form>
 
           {/* List */}
@@ -474,38 +528,39 @@ export default function AdminDashboard() {
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-3 py-3 font-bold text-slate-500">Mã hộ lý</th>
-                      <th className="px-3 py-3 font-bold text-slate-500">Họ tên nhân viên</th>
-                      <th className="px-3 py-3 font-bold text-slate-500 w-24 text-center">Hiện trạng</th>
-                      <th className="px-3 py-3 font-bold text-slate-500 w-16 text-center">Thao tác</th>
+                      <th className="px-4 py-3 font-bold text-slate-500 w-16 text-center">Hình ảnh</th>
+                      <th className="px-4 py-3 font-bold text-slate-500">Họ tên nhân viên</th>
+                      <th className="px-4 py-3 font-bold text-slate-500 w-20 text-center">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
-                    {orderlies.map((o) => (
-                      <tr key={o.id_nhanvien} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-3 py-3 font-mono text-slate-400 text-xxs truncate max-w-[80px]" title={o.id_nhanvien}>
-                          {o.id_nhanvien.split('-')[0]}
-                        </td>
-                        <td className="px-3 py-3 font-semibold text-slate-700">{o.nhanvien}</td>
-                        <td className="px-3 py-3 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-xxs font-extrabold border ${
-                            o.hientrang === 'Đang làm'
-                              ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                              : 'bg-rose-50 border-rose-100 text-rose-600'
-                          }`}>
-                            {o.hientrang}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          <button
-                            onClick={() => handleDeleteOrderly(o.id_nhanvien)}
-                            className="text-rose-600 hover:text-rose-800 font-bold transition-colors cursor-pointer"
-                          >
-                            Xóa
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {orderlies.map((o) => {
+                      const initials = o.nhanvien.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                      const bgColors = ['bg-blue-50 text-blue-600 border-blue-100', 'bg-indigo-50 text-indigo-600 border-indigo-100', 'bg-emerald-50 text-emerald-600 border-emerald-100', 'bg-violet-50 text-violet-600 border-violet-100']
+                      const colorIndex = o.nhanvien.charCodeAt(0) % bgColors.length
+                      const placeholderClass = `w-10 h-10 rounded-full border flex items-center justify-center text-xs font-extrabold ${bgColors[colorIndex]}`
+
+                      return (
+                        <tr key={o.id_nhanvien} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3 text-center flex justify-center">
+                            {o.imageUrl ? (
+                              <img src={o.imageUrl} alt={o.nhanvien} className="w-10 h-10 rounded-full object-cover border border-slate-200/80 shadow-sm" />
+                            ) : (
+                              <div className={placeholderClass}>{initials}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-slate-700">{o.nhanvien}</td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => handleDeleteOrderly(o.id_nhanvien)}
+                              className="text-rose-600 hover:text-rose-800 font-bold transition-colors cursor-pointer text-xs"
+                            >
+                              Xóa
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

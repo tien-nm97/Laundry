@@ -37,7 +37,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-slate-900 flex flex-col font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-slate-200/80 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white border-b border-slate-200/80 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
@@ -87,9 +87,9 @@ export default function AdminLayout({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative print:p-0 print:max-w-none print:w-auto">
         {/* Mobile Navigation */}
-        <div className="md:hidden flex gap-2 mb-6 bg-slate-200/60 p-1 rounded-xl border border-slate-200">
+        <div className="md:hidden flex gap-2 mb-6 bg-slate-200/60 p-1 rounded-xl border border-slate-200 print:hidden">
           {navItems.map((item) => {
             const isActive = pathname === item.href
             return (
@@ -112,7 +112,7 @@ export default function AdminLayout({
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-400 bg-white mt-auto">
+      <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-400 bg-white mt-auto print:hidden">
         <p>© {new Date().getFullYear()} Hospital Linen Management & Distribution System. All rights reserved.</p>
       </footer>
     </div>

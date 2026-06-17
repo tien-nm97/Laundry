@@ -63,7 +63,7 @@ function PrintQRContent() {
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrLink)}`
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 font-sans antialiased print:bg-white print:p-0 print:min-h-0">
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 font-sans antialiased print:bg-white print:p-0 print:min-h-screen print:flex print:items-center print:justify-center">
       {/* Control Panel (Hidden when printing) */}
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-4 mb-6 shadow-sm flex justify-between items-center print:hidden">
         <button
@@ -79,9 +79,9 @@ function PrintQRContent() {
           🖨️ In mã QR
         </button>
       </div>
-
+ 
       {/* Printable Area */}
-      <div className="w-full max-w-md bg-white border-2 border-slate-200 rounded-3xl p-8 shadow-xl text-center flex flex-col items-center space-y-6 print:border-0 print:shadow-none print:w-full print:max-w-none print:my-auto print:p-0">
+      <div className="w-full max-w-md bg-white border-2 border-slate-200 rounded-3xl p-8 shadow-xl text-center flex flex-col items-center space-y-6 print:shadow-none print:border-slate-300">
         
         {/* Hospital Branding */}
         <div className="space-y-1">

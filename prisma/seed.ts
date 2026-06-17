@@ -33,7 +33,7 @@ async function main() {
   const linenTypes = [
     { name: 'Mền xanh', unit: 'Cái' },
     { name: 'Vỏ gối', unit: 'Cái' },
-    { name: 'Áo choàng phẫu thuật', unit: 'Bộ' },
+    { name: 'Áo choàng phẫu thuật', unit: 'Cái' },
   ];
 
   for (const lt of linenTypes) {

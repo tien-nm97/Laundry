@@ -32,6 +32,7 @@ export default function AdminLayout({
   const navItems = [
     { name: 'Đồ vải & Khoa phòng', href: '/admin' },
     { name: 'Lô nhập hàng', href: '/admin/batches' },
+    { name: 'Yêu cầu cấp phát', href: '/admin/dispatch' },
   ]
 
   return (

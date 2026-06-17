@@ -20,7 +20,10 @@ const poolConfig = {
 function createPrismaClient() {
   const pool = new Pool(poolConfig)
   const adapter = new PrismaPg(pool)
-  return new PrismaClient({ adapter })
+  const client = new PrismaClient({ adapter })
+  // Attach pg pool to client instance for lifecycle management in tests
+  ;(client as any).$pool = pool
+  return client
 }
 
 if (process.env.NODE_ENV === 'production') {

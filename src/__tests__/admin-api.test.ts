@@ -17,6 +17,29 @@ describe('Admin API Endpoints', () => {
     laundryToken = await signToken({ userId: '2', username: 'laundry', role: 'LAUNDRY' })
   })
 
+  afterAll(async () => {
+    // Clean up test batches
+    await prisma.batch.deleteMany({
+      where: {
+        code: { startsWith: 'BATCH-' }
+      }
+    })
+
+    // Clean up test wards
+    await prisma.ward.deleteMany({
+      where: {
+        name: { startsWith: 'Ward ' }
+      }
+    })
+
+    // Clean up test linen types
+    await prisma.linenType.deleteMany({
+      where: {
+        name: { startsWith: 'Linen Type ' }
+      }
+    })
+  })
+
   const createRequest = (method: string, body?: any, token?: string) => {
     const headers: Record<string, string> = {}
     if (body) {

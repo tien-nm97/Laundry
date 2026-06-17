@@ -31,7 +31,7 @@ async function main() {
 
   // 2. Seed Linen Types
   const linenTypes = [
-    { name: 'Vỏ chăn bông', unit: 'Cái' },
+    { name: 'Mền xanh', unit: 'Cái' },
     { name: 'Vỏ gối', unit: 'Cái' },
     { name: 'Áo choàng phẫu thuật', unit: 'Bộ' },
   ];

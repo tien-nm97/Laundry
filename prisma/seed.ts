@@ -31,11 +31,9 @@ async function main() {
 
   // 2. Seed Linen Types
   const linenTypes = [
-    { name: 'Ga trải giường bệnh nhân', unit: 'Cái' },
     { name: 'Vỏ chăn bông', unit: 'Cái' },
     { name: 'Vỏ gối', unit: 'Cái' },
     { name: 'Áo choàng phẫu thuật', unit: 'Bộ' },
-    { name: 'Đồng phục bệnh nhân', unit: 'Bộ' },
   ];
 
   for (const lt of linenTypes) {

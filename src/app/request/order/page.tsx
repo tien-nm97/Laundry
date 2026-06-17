@@ -259,7 +259,7 @@ function RequestOrderForm() {
           {/* Requester orderly selection */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
-              Nhân viên yêu cầu (Hộ lý) <span className="text-rose-500">*</span>
+              Nhân viên yêu cầu <span className="text-rose-500">*</span>
             </label>
             <select
               value={requesterName}
@@ -271,7 +271,7 @@ function RequestOrderForm() {
               className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all cursor-pointer"
               required
             >
-              <option value="">-- Chọn nhân viên yêu cầu --</option>
+              <option value="">-- Hộ lý--</option>
               {orderlies.map((o) => (
                 <option key={o.id_nhanvien} value={o.nhanvien}>
                   {o.nhanvien}

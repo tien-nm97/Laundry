@@ -36,7 +36,7 @@ function RequestOrderForm() {
   const [ward, setWard] = useState<Ward | null>(null)
   const [linenTypes, setLinenTypes] = useState<LinenType[]>([])
   const [orderlies, setOrderlies] = useState<any[]>([])
-  
+
   // Requester name selection state
   const [requesterName, setRequesterName] = useState('')
 
@@ -172,7 +172,7 @@ function RequestOrderForm() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          
+
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900">Gửi yêu cầu thành công!</h2>
             <p className="text-slate-500 text-sm mt-1">Yêu cầu đồ vải của khoa phòng đã được ghi nhận.</p>
@@ -210,7 +210,7 @@ function RequestOrderForm() {
                 <div key={item.id} className="flex justify-between py-2.5 text-sm">
                   <span className="font-semibold text-slate-700">{item.linenType.name}</span>
                   <span className="font-bold text-[#0066b2] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/50">
-                    {item.quantity} {item.linenType.unit}
+                    {item.quantity}
                   </span>
                 </div>
               ))}
@@ -285,7 +285,7 @@ function RequestOrderForm() {
             <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
               Danh sách đồ vải yêu cầu <span className="text-rose-500">*</span>:
             </h3>
-            
+
             <div className="space-y-3">
               {rows.map((row, index) => {
                 const availableLinenTypes = getAvailableLinenTypes(row.linenTypeId)
@@ -307,7 +307,7 @@ function RequestOrderForm() {
                         <option value="">-- Chọn loại đồ vải --</option>
                         {availableLinenTypes.map((lt) => (
                           <option key={lt.id} value={lt.id}>
-                            {lt.name} ({lt.unit})
+                            {lt.name}
                           </option>
                         ))}
                       </select>

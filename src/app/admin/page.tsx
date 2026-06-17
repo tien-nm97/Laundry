@@ -37,6 +37,12 @@ export default function AdminDashboard() {
   const [orderlyName, setOrderlyName] = useState('')
   const [orderlyImage, setOrderlyImage] = useState<string | null>(null)
 
+  // Edit Orderly states
+  const [editingOrderly, setEditingOrderly] = useState<Orderly | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editImage, setEditImage] = useState<string | null>(null)
+  const [submittingEdit, setSubmittingEdit] = useState(false)
+
   // Loading & feedback states
   const [loadingTypes, setLoadingTypes] = useState(true)
   const [loadingWards, setLoadingWards] = useState(true)
@@ -149,6 +155,108 @@ export default function AdminDashboard() {
         img.src = event.target?.result as string
       }
       reader.readAsDataURL(file)
+    }
+  }
+
+  const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const MAX_WIDTH = 120
+          const MAX_HEIGHT = 120
+          let width = img.width
+          let height = img.height
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width
+              width = MAX_WIDTH
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height
+              height = MAX_HEIGHT
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7)
+            setEditImage(compressedBase64)
+          }
+        }
+        img.src = event.target?.result as string
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleStartEdit = (o: Orderly) => {
+    setEditingOrderly(o)
+    setEditName(o.nhanvien)
+    setEditImage(o.imageUrl || null)
+  }
+
+  const handleUpdateOrderly = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingOrderly || !editName.trim()) return
+
+    setSubmittingEdit(true)
+    try {
+      const res = await fetch('/api/admin/orderlies', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingOrderly.id_nhanvien,
+          nhanvien: editName.trim(),
+          imageUrl: editImage,
+        }),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        setEditingOrderly(null)
+        showFeedback('success', `Đã cập nhật hộ lý: ${data.nhanvien}`)
+        fetchOrderlies()
+      } else {
+        showFeedback('error', data.error || 'Lỗi khi cập nhật hộ lý')
+      }
+    } catch (err) {
+      showFeedback('error', 'Lỗi kết nối hệ thống')
+    } finally {
+      setSubmittingEdit(false)
+    }
+  }
+
+  const handleDeleteFromEdit = async () => {
+    if (!editingOrderly) return
+    const id = editingOrderly.id_nhanvien
+    if (!confirm(`Bạn có chắc chắn muốn xóa nhân viên "${editingOrderly.nhanvien}" không?`)) return
+
+    setSubmittingEdit(true)
+    try {
+      const res = await fetch(`/api/admin/orderlies?id=${id}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setEditingOrderly(null)
+        showFeedback('success', 'Đã xóa hộ lý thành công')
+        fetchOrderlies()
+      } else {
+        const data = await res.json()
+        showFeedback('error', data.error || 'Lỗi khi xóa hộ lý')
+      }
+    } catch (err) {
+      showFeedback('error', 'Lỗi kết nối hệ thống')
+    } finally {
+      setSubmittingEdit(false)
     }
   }
 
@@ -552,10 +660,10 @@ export default function AdminDashboard() {
                           <td className="px-4 py-3 font-semibold text-slate-700">{o.nhanvien}</td>
                           <td className="px-4 py-3 text-center">
                             <button
-                              onClick={() => handleDeleteOrderly(o.id_nhanvien)}
-                              className="text-rose-600 hover:text-rose-800 font-bold transition-colors cursor-pointer text-xs"
+                              onClick={() => handleStartEdit(o)}
+                              className="text-[#0066b2] hover:text-blue-700 font-bold transition-colors cursor-pointer text-xs"
                             >
-                              Xóa
+                              Sửa
                             </button>
                           </td>
                         </tr>
@@ -568,6 +676,85 @@ export default function AdminDashboard() {
           </div>
         </section>
       </div>
+ 
+      {/* Edit Orderly Modal */}
+      {editingOrderly && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-extrabold text-slate-900">Chỉnh sửa thông tin hộ lý</h3>
+              <button
+                type="button"
+                onClick={() => setEditingOrderly(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-xs p-1"
+              >
+                ✕
+              </button>
+            </div>
+ 
+            <form onSubmit={handleUpdateOrderly} className="space-y-4">
+              <div className="flex flex-col items-center gap-2">
+                <label className="relative flex flex-col items-center justify-center w-20 h-20 rounded-full border-2 border-dashed border-slate-300 hover:border-[#0066b2] bg-white cursor-pointer overflow-hidden transition-all shadow-inner group">
+                  {editImage ? (
+                    <img src={editImage} alt="Edit Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-slate-400 gap-0.5">
+                      <span className="text-lg font-bold">＋</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider">Chọn ảnh</span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEditImageChange}
+                    className="hidden"
+                  />
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">(Nhấp vào ảnh để thay đổi)</span>
+              </div>
+ 
+              <div className="space-y-1">
+                <label className="block text-xxs text-slate-500 font-semibold">Họ và tên nhân viên</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                  required
+                />
+              </div>
+ 
+              <div className="pt-2 space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingOrderly(null)}
+                    className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingEdit}
+                    className="flex-1 bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
+                  >
+                    {submittingEdit ? 'Đang lưu...' : 'Lưu'}
+                  </button>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleDeleteFromEdit}
+                  disabled={submittingEdit}
+                  className="w-full border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center mt-2"
+                >
+                  Xóa nhân viên
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

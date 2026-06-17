@@ -87,3 +87,49 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Lỗi khi xóa hộ lý' }, { status: 500 })
   }
 }
+
+export async function PUT(request: Request) {
+  const auth = await verifyAdminRequest(request)
+  if (auth.error) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  try {
+    const body = await request.json()
+    const { id, nhanvien, imageUrl } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'Thiếu ID nhân viên cần cập nhật' }, { status: 400 })
+    }
+
+    if (!nhanvien || !nhanvien.trim()) {
+      return NextResponse.json({ error: 'Tên hộ lý không được để trống' }, { status: 400 })
+    }
+
+    const existing = await prisma.staff.findFirst({
+      where: {
+        nhanvien: nhanvien.trim(),
+        id_nhanvien: { not: id }
+      }
+    })
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Hộ lý có tên này đã tồn tại' },
+        { status: 400 }
+      )
+    }
+
+    const updatedOrderly = await prisma.staff.update({
+      where: { id_nhanvien: id },
+      data: {
+        nhanvien: nhanvien.trim(),
+        imageUrl: imageUrl !== undefined ? imageUrl : undefined
+      }
+    })
+
+    return NextResponse.json(updatedOrderly)
+  } catch (error: any) {
+    console.error('PUT orderly error:', error)
+    return NextResponse.json({ error: 'Lỗi khi cập nhật thông tin hộ lý' }, { status: 500 })
+  }
+}

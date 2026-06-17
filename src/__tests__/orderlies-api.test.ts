@@ -1,19 +1,19 @@
 /**
  * @jest-environment node
  */
-import { GET, POST, DELETE } from '../app/api/admin/orderlies/route'
+import { GET, POST, DELETE, PUT } from '../app/api/admin/orderlies/route'
 import { signToken } from '../lib/jwt'
 import { prisma } from '../lib/db'
-
+ 
 describe('Admin Orderlies API', () => {
   let adminToken: string
   let orderlyId: string
-
+ 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test-secret-key-at-least-thirty-two-chars-long'
     adminToken = await signToken({ userId: '1', username: 'admin', role: 'ADMIN' })
   })
-
+ 
   const createRequest = (method: string, body?: any, token?: string, searchParams?: URLSearchParams) => {
     let url = 'http://localhost/api/admin/orderlies'
     if (searchParams) {
@@ -28,7 +28,7 @@ describe('Admin Orderlies API', () => {
       body: body ? JSON.stringify(body) : undefined,
     }) as any
   }
-
+ 
   it('should create an orderly', async () => {
     const req = createRequest('POST', { nhanvien: 'Test Orderly A' }, adminToken)
     const res = await POST(req)
@@ -37,7 +37,7 @@ describe('Admin Orderlies API', () => {
     expect(data.nhanvien).toBe('Test Orderly A')
     orderlyId = data.id_nhanvien
   })
-
+ 
   it('should list all orderlies', async () => {
     const req = createRequest('GET', undefined, adminToken)
     const res = await GET(req)
@@ -45,13 +45,22 @@ describe('Admin Orderlies API', () => {
     const data = await res.json()
     expect(data.some((o: any) => o.nhanvien === 'Test Orderly A')).toBe(true)
   })
-
+ 
+  it('should update an orderly', async () => {
+    const req = createRequest('PUT', { id: orderlyId, nhanvien: 'Test Orderly B', imageUrl: 'http://test-url.com/img.png' }, adminToken)
+    const res = await PUT(req)
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.nhanvien).toBe('Test Orderly B')
+    expect(data.imageUrl).toBe('http://test-url.com/img.png')
+  })
+ 
   it('should delete an orderly', async () => {
     const params = new URLSearchParams({ id: orderlyId })
     const req = createRequest('DELETE', undefined, adminToken, params)
     const res = await DELETE(req)
     expect(res.status).toBe(200)
-
+ 
     const check = await prisma.staff.findUnique({ where: { id_nhanvien: orderlyId } })
     expect(check).toBeNull()
   })

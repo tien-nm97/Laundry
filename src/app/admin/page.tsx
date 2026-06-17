@@ -382,11 +382,11 @@ export default function AdminDashboard() {
                         {/* Thumbnail QR Code */}
                         {origin && (
                           <a
-                            href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrLink)}`}
+                            href={`/admin/print-qr?wardId=${ward.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="shrink-0 block bg-white p-1 rounded-lg border border-slate-200 hover:border-[#0066b2] transition-colors cursor-zoom-in"
-                            title="Bấm để phóng to / in mã QR"
+                            title="Bấm để in mã QR có tên khoa"
                           >
                             <img
                               src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrLink)}`}

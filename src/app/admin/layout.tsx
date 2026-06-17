@@ -45,7 +45,7 @@ export default function AdminLayout({
                 A
               </div>
               <div>
-                <span className="font-extrabold text-xl tracking-tight text-[#0066b2]">BECAMEX HOSPITALS</span>
+                <span className="font-extrabold text-xl tracking-tight text-[#0066b2]">BECAMEX HOSPITAL</span>
                 <span className="text-xxs block text-slate-500 font-bold tracking-widest -mt-1 uppercase">Admin Portal</span>
               </div>
             </div>

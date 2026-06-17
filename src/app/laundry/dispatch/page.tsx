@@ -90,7 +90,7 @@ export default function DispatchPage() {
               L
             </div>
             <div>
-              <span className="font-extrabold text-lg text-[#0066b2] tracking-tight">BECAMEX HOSPITALS</span>
+              <span className="font-extrabold text-lg text-[#0066b2] tracking-tight">BECAMEX HOSPITAL</span>
               <span className="text-xxs block text-slate-500 font-bold tracking-widest uppercase -mt-1">Laundry Dispatch</span>
             </div>
           </div>

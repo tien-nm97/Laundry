@@ -86,7 +86,7 @@ function PrintQRContent() {
         {/* Hospital Branding */}
         <div className="space-y-1">
           <div className="text-xs font-extrabold tracking-widest text-[#0066b2] uppercase">
-            BECAMEX HOSPITALS
+            BECAMEX HOSPITAL
           </div>
           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
             Linen Management System

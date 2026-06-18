@@ -42,6 +42,15 @@ const AVAILABLE_PERMISSIONS = [
   { key: 'admin:ticket', label: 'Xử lý Cấp phát' },
   { key: 'admin:users', label: 'Quản lý Tài khoản' },
   { key: 'laundry:view', label: 'Nghiệp vụ Nhà giặt' },
+  
+  // Quyền cho Giám sát Hộ lý (Khoa/Phòng)
+  { key: 'supervisor:ward_report', label: 'Giám sát: Báo cáo đồ vải hư hỏng' },
+  { key: 'supervisor:ward_history', label: 'Giám sát: Xem lịch sử yêu cầu khoa phòng' },
+
+  // Quyền cho Giám sát Nhà giặt
+  { key: 'supervisor:laundry_aggregate', label: 'Giám sát: Quản lý yêu cầu tập trung' },
+  { key: 'supervisor:laundry_damage', label: 'Giám sát: Tiếp nhận & Xử lý đồ hư' },
+  { key: 'supervisor:laundry_procure', label: 'Giám sát: Lên kế hoạch đặt hàng (Thu mua)' },
 ]
 
 export default function AdminDashboard() {

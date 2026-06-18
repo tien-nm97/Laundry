@@ -64,6 +64,32 @@ async function main() {
     },
   });
 
+  await prisma.user.upsert({
+    where: { username: 'supervisor_ward' },
+    update: {
+      permissions: ['admin:view', 'admin:ticket', 'supervisor:ward_report', 'supervisor:ward_history']
+    },
+    create: {
+      username: 'supervisor_ward',
+      passwordHash,
+      role: 'SUPERVISOR',
+      permissions: ['admin:view', 'admin:ticket', 'supervisor:ward_report', 'supervisor:ward_history'],
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { username: 'supervisor_laundry' },
+    update: {
+      permissions: ['admin:view', 'admin:ticket', 'supervisor:laundry_aggregate', 'supervisor:laundry_damage', 'supervisor:laundry_procure']
+    },
+    create: {
+      username: 'supervisor_laundry',
+      passwordHash,
+      role: 'SUPERVISOR',
+      permissions: ['admin:view', 'admin:ticket', 'supervisor:laundry_aggregate', 'supervisor:laundry_damage', 'supervisor:laundry_procure'],
+    },
+  });
+
   console.log('Seed users completed.')
 
   // 2. Seed Linen Types

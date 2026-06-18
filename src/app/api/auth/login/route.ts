@@ -38,12 +38,14 @@ export async function POST(request: Request) {
       userId: user.id,
       username: user.username,
       role: user.role,
+      permissions: user.permissions,
     })
 
     const response = NextResponse.json({
       id: user.id,
       username: user.username,
       role: user.role,
+      permissions: user.permissions,
     })
 
     // Set secure HttpOnly cookie

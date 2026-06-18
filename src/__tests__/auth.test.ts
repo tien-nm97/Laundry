@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { signToken, verifyToken } from '../lib/jwt'
+import { signToken, verifyToken, verifyPermission } from '../lib/jwt'
 
 describe('JWT Utilities', () => {
   const originalSecret = process.env.JWT_SECRET;
@@ -15,7 +15,7 @@ describe('JWT Utilities', () => {
   });
 
   it('should sign and verify a payload successfully', async () => {
-    const payload = { userId: '123', username: 'admin', role: 'ADMIN' as const };
+    const payload = { userId: '123', username: 'admin', role: 'ADMIN' as const, permissions: ['admin:users'] };
     const token = await signToken(payload);
     expect(typeof token).toBe('string');
 
@@ -24,6 +24,31 @@ describe('JWT Utilities', () => {
     expect(verified?.userId).toBe('123');
     expect(verified?.username).toBe('admin');
     expect(verified?.role).toBe('ADMIN');
+    expect(verified?.permissions).toContain('admin:users');
+  });
+
+  it('should verify permission correctly using verifyPermission', async () => {
+    const payload = { 
+      userId: '789', 
+      username: 'customuser', 
+      role: 'LAUNDRY' as const,
+      permissions: ['laundry:view']
+    };
+    const token = await signToken(payload);
+    
+    const reqWithPermission = new Request('http://localhost', {
+      headers: { cookie: `token=${token}` }
+    });
+    const authCheck = await verifyPermission(reqWithPermission, 'laundry:view');
+    expect(authCheck.error).toBeUndefined();
+    expect(authCheck.payload?.userId).toBe('789');
+
+    const reqWithoutPermission = new Request('http://localhost', {
+      headers: { cookie: `token=${token}` }
+    });
+    const authCheckFail = await verifyPermission(reqWithoutPermission, 'admin:users');
+    expect(authCheckFail.error).toBe('Không có quyền thực hiện thao tác này');
+    expect(authCheckFail.status).toBe(403);
   });
 
   it('should return null for an invalid token', async () => {
@@ -32,10 +57,7 @@ describe('JWT Utilities', () => {
   });
 
   it('should return null for an expired token', async () => {
-    // We can sign a token with a short expiration if signToken supports custom expiration,
-    // or just test that an expired token fails. Let's make signToken accept a custom expiration option
     const payload = { userId: '456', username: 'laundry', role: 'LAUNDRY' as const };
-    // Pass custom expiration (e.g. -1s for expired token)
     const token = await signToken(payload, '-1s');
     const verified = await verifyToken(token);
     expect(verified).toBeNull();

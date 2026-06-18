@@ -7,6 +7,7 @@ export interface UserJWTPayload {
   userId: string
   username: string
   role: 'ADMIN' | 'LAUNDRY'
+  permissions?: string[]
 }
 
 export async function signToken(payload: UserJWTPayload, expiresIn: string = '1d'): Promise<string> {
@@ -77,6 +78,41 @@ export async function verifyLaundryRequest(request: Request) {
 
   if (payload.role !== 'LAUNDRY') {
     return { error: 'Không có quyền truy cập', status: 403 }
+  }
+
+  return { payload }
+}
+
+export async function verifyPermission(request: Request, permission: string) {
+  const cookieHeader = request.headers.get('cookie') || ''
+  let token: string | undefined = undefined
+  const cookieList = cookieHeader.split(';')
+  for (const cookie of cookieList) {
+    const [name, val] = cookie.trim().split('=')
+    if (name === 'token') {
+      token = val
+      break
+    }
+  }
+
+  if (!token) {
+    return { error: 'Chưa đăng nhập', status: 401 }
+  }
+
+  const payload = await verifyToken(token)
+  if (!payload) {
+    return { error: 'Phiên làm việc hết hạn hoặc không hợp lệ', status: 401 }
+  }
+
+  const userPerms = payload.permissions || []
+  
+  // Tài khoản ADMIN mặc định có tất cả quyền nếu không có trường permissions
+  if (payload.role === 'ADMIN' && userPerms.length === 0) {
+    return { payload }
+  }
+
+  if (!userPerms.includes(permission)) {
+    return { error: 'Không có quyền thực hiện thao tác này', status: 403 }
   }
 
   return { payload }

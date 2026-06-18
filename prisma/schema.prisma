@@ -11,6 +11,7 @@ model User {
   username     String   @unique
   passwordHash String
   role         Role     @default(LAUNDRY)
+  permissions  String[] @default([])
   createdAt    DateTime @default(now())
 }
 

@@ -9,21 +9,45 @@ async function main() {
   
   await prisma.user.upsert({
     where: { username: 'admin' },
-    update: {},
+    update: {
+      permissions: [
+        'admin:view',
+        'admin:linen',
+        'admin:ward',
+        'admin:staff',
+        'admin:batch',
+        'admin:ticket',
+        'admin:users',
+        'laundry:view'
+      ]
+    },
     create: {
       username: 'admin',
       passwordHash,
       role: 'ADMIN',
+      permissions: [
+        'admin:view',
+        'admin:linen',
+        'admin:ward',
+        'admin:staff',
+        'admin:batch',
+        'admin:ticket',
+        'admin:users',
+        'laundry:view'
+      ],
     },
   });
 
   await prisma.user.upsert({
     where: { username: 'laundry' },
-    update: {},
+    update: {
+      permissions: ['laundry:view']
+    },
     create: {
       username: 'laundry',
       passwordHash,
       role: 'LAUNDRY',
+      permissions: ['laundry:view'],
     },
   });
 

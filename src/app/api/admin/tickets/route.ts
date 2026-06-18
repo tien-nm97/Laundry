@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/db'
-import { verifyAdminRequest } from '@/lib/jwt'
+import { verifyPermission } from '@/lib/jwt'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  const auth = await verifyAdminRequest(request)
+  const auth = await verifyPermission(request, 'admin:view')
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }

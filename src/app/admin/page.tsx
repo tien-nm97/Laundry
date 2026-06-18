@@ -621,10 +621,10 @@ export default function AdminDashboard() {
       {/* Title section */}
       <div>
         <h1 className="text-2xl font-extrabold text-[#0066b2]">
-          Danh mục Đồ vải & Khoa phòng
+          Danh mục hệ thống
         </h1>
         <p className="text-xs text-slate-400 mt-1">
-          Quản lý định nghĩa danh mục các loại đồ vải của bệnh viện và cấu hình mã QR truy cập cho từng khoa phòng.
+          Quản lý định nghĩa danh mục các loại đồ vải của bệnh viện, cấu hình mã QR truy cập khoa phòng, và danh sách tài khoản người dùng.
         </p>
       </div>
 

@@ -9,11 +9,13 @@ describe('Next.js Proxy Authentication', () => {
   const originalSecret = process.env.JWT_SECRET;
   let adminToken: string;
   let laundryToken: string;
+  let supervisorToken: string;
 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test-secret-key-at-least-thirty-two-chars-long';
     adminToken = await signToken({ userId: '1', username: 'admin', role: 'ADMIN' });
     laundryToken = await signToken({ userId: '2', username: 'laundry', role: 'LAUNDRY' });
+    supervisorToken = await signToken({ userId: '3', username: 'supervisor', role: 'SUPERVISOR' });
   });
 
   afterAll(() => {
@@ -94,5 +96,29 @@ describe('Next.js Proxy Authentication', () => {
     } else {
       expect(res).toBeUndefined();
     }
+  });
+
+  it('should allow SUPERVISOR users to access /admin/dispatch', async () => {
+    const req = createMockRequest('http://localhost/admin/dispatch', supervisorToken);
+    const res = await proxy(req);
+    if (res) {
+      expect(res.headers.get('location')).toBeNull();
+    }
+  });
+
+  it('should redirect SUPERVISOR users trying to access other /admin routes to /login', async () => {
+    const req = createMockRequest('http://localhost/admin', supervisorToken);
+    const res = await proxy(req);
+    expect(res).toBeDefined();
+    expect(res?.status).toBe(307);
+    expect(res?.headers.get('location')).toContain('/login');
+  });
+
+  it('should redirect SUPERVISOR users trying to access /laundry to /login', async () => {
+    const req = createMockRequest('http://localhost/laundry', supervisorToken);
+    const res = await proxy(req);
+    expect(res).toBeDefined();
+    expect(res?.status).toBe(307);
+    expect(res?.headers.get('location')).toContain('/login');
   });
 });

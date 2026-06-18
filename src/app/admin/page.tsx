@@ -948,10 +948,21 @@ export default function AdminDashboard() {
                 <label className="block text-xxs text-slate-500 mb-1 font-semibold">Vai trò chính</label>
                 <select
                   value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
+                  onChange={(e) => {
+                    const r = e.target.value
+                    setNewRole(r)
+                    if (r === 'SUPERVISOR') {
+                      setNewPermissions(['admin:view', 'admin:ticket'])
+                    } else if (r === 'ADMIN') {
+                      setNewPermissions(['admin:view', 'admin:linen', 'admin:ward', 'admin:staff', 'admin:batch', 'admin:ticket', 'admin:users', 'laundry:view'])
+                    } else if (r === 'LAUNDRY') {
+                      setNewPermissions(['laundry:view'])
+                    }
+                  }}
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
                 >
                   <option value="LAUNDRY">LAUNDRY (Nhà giặt)</option>
+                  <option value="SUPERVISOR">SUPERVISOR (Giám sát)</option>
                   <option value="ADMIN">ADMIN (Quản trị viên)</option>
                 </select>
               </div>

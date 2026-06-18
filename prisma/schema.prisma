@@ -103,6 +103,7 @@ model Staff {
 enum Role {
   ADMIN
   LAUNDRY
+  SUPERVISOR
 }
 
 enum TicketStatus {

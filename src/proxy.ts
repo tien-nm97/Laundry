@@ -30,9 +30,16 @@ export async function proxy(request: NextRequest) {
       return response
     }
 
-    if (isProtectedAdmin && payload.role !== 'ADMIN') {
-      const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+    if (isProtectedAdmin) {
+      const isDispatchRoute = pathname.startsWith('/admin/dispatch')
+      if (payload.role === 'ADMIN') {
+        // Allowed
+      } else if (payload.role === 'SUPERVISOR' && isDispatchRoute) {
+        // Allowed
+      } else {
+        const loginUrl = new URL('/login', request.url)
+        return NextResponse.redirect(loginUrl)
+      }
     }
 
     if (isProtectedLaundry && payload.role !== 'LAUNDRY') {

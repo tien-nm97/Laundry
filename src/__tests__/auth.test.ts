@@ -62,4 +62,17 @@ describe('JWT Utilities', () => {
     const verified = await verifyToken(token);
     expect(verified).toBeNull();
   });
+
+  it('should sign and verify a payload successfully for SUPERVISOR', async () => {
+    const payload = { userId: '111', username: 'supervisor', role: 'SUPERVISOR' as const, permissions: ['admin:view'] };
+    const token = await signToken(payload);
+    expect(typeof token).toBe('string');
+
+    const verified = await verifyToken(token);
+    expect(verified).not.toBeNull();
+    expect(verified?.userId).toBe('111');
+    expect(verified?.username).toBe('supervisor');
+    expect(verified?.role).toBe('SUPERVISOR');
+    expect(verified?.permissions).toContain('admin:view');
+  });
 });

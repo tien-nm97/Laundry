@@ -51,6 +51,19 @@ async function main() {
     },
   });
 
+  await prisma.user.upsert({
+    where: { username: 'supervisor' },
+    update: {
+      permissions: ['admin:view', 'admin:ticket']
+    },
+    create: {
+      username: 'supervisor',
+      passwordHash,
+      role: 'SUPERVISOR',
+      permissions: ['admin:view', 'admin:ticket'],
+    },
+  });
+
   console.log('Seed users completed.')
 
   // 2. Seed Linen Types

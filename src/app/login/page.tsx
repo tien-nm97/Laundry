@@ -31,6 +31,8 @@ export default function LoginPage() {
       if (res.ok) {
         if (data.role === 'ADMIN') {
           router.push('/admin')
+        } else if (data.role === 'SUPERVISOR') {
+          router.push('/admin/dispatch')
         } else if (data.role === 'LAUNDRY') {
           router.push('/laundry')
         } else {

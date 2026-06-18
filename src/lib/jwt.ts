@@ -6,7 +6,7 @@ const secretKey = new TextEncoder().encode(JWT_SECRET)
 export interface UserJWTPayload {
   userId: string
   username: string
-  role: 'ADMIN' | 'LAUNDRY'
+  role: 'ADMIN' | 'LAUNDRY' | 'SUPERVISOR'
   permissions?: string[]
 }
 

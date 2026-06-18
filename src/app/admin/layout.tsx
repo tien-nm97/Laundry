@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function AdminLayout({
   children,
@@ -12,6 +12,25 @@ export default function AdminLayout({
   const pathname = usePathname()
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [userRole, setUserRole] = useState('')
+
+  useEffect(() => {
+    try {
+      const tokenCookie = document.cookie.split(';').find(c => c.trim().startsWith('token='))
+      if (tokenCookie) {
+        const token = tokenCookie.split('=')[1]
+        const base64Url = token.split('.')[1]
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload)
+        setUserRole(payload.role || '')
+      }
+    } catch (err) {
+      console.error('Lỗi khi đọc token từ cookie:', err)
+    }
+  }, [])
 
   const handleLogout = async () => {
     if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
@@ -30,10 +49,10 @@ export default function AdminLayout({
   }
 
   const navItems = [
-    { name: 'Danh mục hệ thống', href: '/admin' },
-    { name: 'Lô nhập hàng', href: '/admin/batches' },
-    { name: 'Yêu cầu cấp phát', href: '/admin/dispatch' },
-  ]
+    { name: 'Danh mục hệ thống', href: '/admin', roles: ['ADMIN'] },
+    { name: 'Lô nhập hàng', href: '/admin/batches', roles: ['ADMIN'] },
+    { name: 'Yêu cầu cấp phát', href: '/admin/dispatch', roles: ['ADMIN', 'SUPERVISOR'] },
+  ].filter(item => !item.roles || item.roles.includes(userRole))
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-slate-900 flex flex-col font-sans">

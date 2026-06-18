@@ -1043,7 +1043,7 @@ export default function AdminDashboard() {
                               ) : (
                                 u.permissions.map((p) => {
                                   const name = AVAILABLE_PERMISSIONS.find(item => item.key === p)?.label || p
-                                  const labelShort = name.replace('Quản lý ', '').replace('Nghiệp vụ ', '').replace('Xem trang ', '')
+                                  const labelShort = name.replace('Quản lý ', '').replace('Nghiệp vụ ', '').replace('Xem trang ', '').replace('Giám sát: ', '')
                                   return (
                                     <span
                                       key={p}

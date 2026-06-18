@@ -53,6 +53,19 @@ const AVAILABLE_PERMISSIONS = [
   { key: 'supervisor:laundry_procure', label: 'Giám sát: Lên kế hoạch đặt hàng (Thu mua)' },
 ]
 
+const getPermissionsForRole = (role: string) => {
+  if (role === 'ADMIN') {
+    return AVAILABLE_PERMISSIONS.filter(p => p.key.startsWith('admin:') || p.key === 'laundry:view')
+  }
+  if (role === 'SUPERVISOR') {
+    return AVAILABLE_PERMISSIONS.filter(p => p.key.startsWith('supervisor:') || p.key === 'admin:view' || p.key === 'admin:ticket')
+  }
+  if (role === 'LAUNDRY') {
+    return AVAILABLE_PERMISSIONS.filter(p => p.key === 'laundry:view')
+  }
+  return []
+}
+
 export default function AdminDashboard() {
   const [linenTypes, setLinenTypes] = useState<LinenType[]>([])
   const [wards, setWards] = useState<Ward[]>([])
@@ -978,7 +991,7 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-xxs text-slate-500 mb-1 font-semibold">Phân quyền chi tiết</label>
                 <div className="bg-white border border-slate-200 rounded-lg p-2.5 max-h-[140px] overflow-y-auto space-y-1.5">
-                  {AVAILABLE_PERMISSIONS.map((p) => (
+                  {getPermissionsForRole(newRole).map((p) => (
                     <label key={p.key} className="flex items-center gap-2 text-xxs text-slate-600 font-semibold cursor-pointer hover:text-slate-800">
                       <input
                         type="checkbox"
@@ -1043,7 +1056,14 @@ export default function AdminDashboard() {
                               ) : (
                                 u.permissions.map((p) => {
                                   const name = AVAILABLE_PERMISSIONS.find(item => item.key === p)?.label || p
-                                  const labelShort = name.replace('Quản lý ', '').replace('Nghiệp vụ ', '').replace('Xem trang ', '').replace('Giám sát: ', '')
+                                  let labelShort = name
+                                  if (p.startsWith('supervisor:')) {
+                                    labelShort = name.replace(/^Giám sát:\s*/, '')
+                                  } else if (p.startsWith('admin:')) {
+                                    labelShort = name.replace(/^Quản lý\s*/, '').replace(/^Xem trang\s*/, '')
+                                  } else if (p.startsWith('laundry:')) {
+                                    labelShort = name.replace(/^Nghiệp vụ\s*/, '')
+                                  }
                                   return (
                                     <span
                                       key={p}
@@ -1189,7 +1209,7 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-xxs text-slate-500 mb-2 font-semibold">Tích chọn các quyền được phép truy cập</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200/60 max-h-[240px] overflow-y-auto">
-                  {AVAILABLE_PERMISSIONS.map((p) => {
+                  {getPermissionsForRole(editingUser.role).map((p) => {
                     const isSelf = editingUser.username === currentUsername
                     const isUsersAdminKey = p.key === 'admin:users'
                     const disabled = isSelf && isUsersAdminKey

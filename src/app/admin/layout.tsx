@@ -1,16 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
 
-export default function AdminLayout({
+function AdminLayoutContent({
   children,
 }: {
   children: React.ReactNode
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const currentTab = searchParams.get('tab') || ''
   const [loggingOut, setLoggingOut] = useState(false)
   const [userRole, setUserRole] = useState('')
 
@@ -50,12 +52,32 @@ export default function AdminLayout({
 
   const navItems = [
     { 
-      name: 'Danh mục hệ thống', 
-      href: '/admin', 
+      name: 'Quản lý Loại vải', 
+      href: '/admin?tab=linen', 
       roles: ['ADMIN'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        </svg>
+      )
+    },
+    { 
+      name: 'Quản lý Khoa phòng', 
+      href: '/admin?tab=ward', 
+      roles: ['ADMIN'],
+      icon: (active: boolean) => (
+        <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      )
+    },
+    { 
+      name: 'Quản lý Hộ lý', 
+      href: '/admin?tab=staff', 
+      roles: ['ADMIN'],
+      icon: (active: boolean) => (
+        <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       )
     },
@@ -79,7 +101,25 @@ export default function AdminLayout({
         </svg>
       )
     },
+    { 
+      name: 'Quản lý Tài khoản', 
+      href: '/admin?tab=users', 
+      roles: ['ADMIN'],
+      icon: (active: boolean) => (
+        <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      )
+    },
   ].filter(item => !item.roles || item.roles.includes(userRole))
+
+  const isActive = (itemHref: string) => {
+    if (itemHref.startsWith('/admin?tab=')) {
+      const tabName = itemHref.split('tab=')[1]
+      return pathname === '/admin' && (currentTab === tabName || (!currentTab && tabName === 'linen'))
+    }
+    return pathname === itemHref
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-slate-900 flex flex-col md:flex-row font-sans">
@@ -99,18 +139,18 @@ export default function AdminLayout({
         {/* Sidebar Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
-            const isActive = pathname === item.href
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`group flex items-center px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 ${
-                  isActive
+                  active
                     ? 'bg-[#1e293b] text-white shadow-md shadow-slate-900/10'
                     : 'text-slate-600 hover:text-[#0066b2] hover:bg-slate-50'
                 }`}
               >
-                {item.icon(isActive)}
+                {item.icon(active)}
                 {item.name}
               </Link>
             )
@@ -169,15 +209,15 @@ export default function AdminLayout({
       <div className="flex-1 flex flex-col md:pl-64 min-h-screen">
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative print:p-0 print:max-w-none print:w-auto">
           {/* Mobile Navigation Tabs */}
-          <div className="md:hidden flex gap-2 mb-6 bg-slate-200/60 p-1 rounded-xl border border-slate-200 print:hidden">
+          <div className="md:hidden flex gap-1.5 mb-6 bg-slate-200/60 p-1 rounded-xl border border-slate-200 overflow-x-auto whitespace-nowrap print:hidden">
             {navItems.map((item) => {
-              const isActive = pathname === item.href
+              const active = isActive(item.href)
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex-1 text-center py-2 rounded-lg text-xs font-bold transition-all ${
-                    isActive
+                  className={`flex-1 text-center py-2 px-3 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                    active
                       ? 'bg-[#1e293b] text-white shadow'
                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/20'
                   }`}
@@ -197,5 +237,24 @@ export default function AdminLayout({
         </footer>
       </div>
     </div>
+  )
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f3f6f9] text-slate-900 flex items-center justify-center font-sans">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-slate-200 border-t-[#0066b2] rounded-full animate-spin mx-auto" />
+          <p className="text-slate-400 text-xs font-semibold mt-3">Đang tải...</p>
+        </div>
+      </div>
+    }>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </Suspense>
   )
 }

@@ -58,7 +58,7 @@ export default function DispatchPage() {
         body: JSON.stringify({ ticketId }),
       })
       if (res.ok) {
-        showFeedback('success', 'Đã xác nhận giao hàng thành công!')
+        showFeedback('success', 'Đã chuẩn bị xong!')
         fetchTickets()
       } else {
         showFeedback('error', 'Lỗi xác nhận bàn giao')
@@ -119,74 +119,48 @@ export default function DispatchPage() {
             <p className="text-slate-400 text-xs mt-3 font-semibold">Đang tải phiếu yêu cầu...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Preparation List - Left column (30% / 1 share) */}
-            <div className="lg:col-span-1 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-5 h-fit">
-              <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#0066b2]" />
-                Tổng hợp cần chuẩn bị
-              </h2>
+          <div className="w-full bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-5">
+            <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+              Danh sách phiếu chờ giao ngày {new Date().toLocaleDateString('vi-VN')}
+            </h2>
 
-              {Object.keys(preparationSummary).length === 0 ? (
-                <p className="text-xs text-slate-400 py-6 text-center">Không có đồ vải nào cần soạn.</p>
-              ) : (
-                <div className="space-y-3">
-                  {Object.entries(preparationSummary).map(([name, data]) => (
-                    <div key={name} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-200/50">
-                      <span className="text-xs font-semibold text-slate-700">{name}</span>
-                      <span className="text-xs font-extrabold text-[#0066b2] bg-blue-50/50 border border-blue-100 px-3 py-1 rounded-lg">
-                        {data.quantity} {data.unit}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Pending Tickets - Right column (70% / 2 shares) */}
-            <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-5">
-              <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                Danh sách phiếu chờ giao ngày {new Date().toLocaleDateString('vi-VN')}
-              </h2>
-
-              {tickets.length === 0 ? (
-                <p className="text-xs text-slate-400 py-12 text-center">Tất cả các khoa phòng đã bàn giao xong.</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tickets.map((t) => (
-                    <div key={t.id} className="bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 p-4 rounded-2xl flex flex-col justify-between transition-all">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start">
-                          <span className="font-extrabold text-xs text-[#0066b2] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/40">
-                            {t.ward?.name}
-                          </span>
-                          <span className="font-mono text-xxs font-bold text-slate-400">
-                            #{t.id.split('-')[0].toUpperCase()}
-                          </span>
-                        </div>
-
-                        <div className="divide-y divide-slate-100 text-xs py-1 border-t border-b border-slate-100">
-                          {t.items.map((item) => (
-                            <div key={item.id} className="flex justify-between py-2">
-                              <span className="text-slate-600 font-medium">{item.linenType.name}</span>
-                              <span className="font-bold text-slate-800">{item.quantity} {item.linenType.unit}</span>
-                            </div>
-                          ))}
-                        </div>
+            {tickets.length === 0 ? (
+              <p className="text-xs text-slate-400 py-12 text-center">Tất cả các khoa phòng đã bàn giao xong.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tickets.map((t) => (
+                  <div key={t.id} className="bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 p-4 rounded-2xl flex flex-col justify-between transition-all">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <span className="font-extrabold text-xs text-[#0066b2] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/40">
+                          {t.ward?.name}
+                        </span>
+                        <span className="font-mono text-xxs font-bold text-slate-400">
+                          #{t.id.split('-')[0].toUpperCase()}
+                        </span>
                       </div>
 
-                      <button
-                        onClick={() => handleDeliver(t.id)}
-                        className="w-full bg-[#0066b2] hover:bg-blue-700 text-white font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer mt-4"
-                      >
-                        Xác nhận Đã giao
-                      </button>
+                      <div className="divide-y divide-slate-100 text-xs py-1 border-t border-b border-slate-100">
+                        {t.items.map((item) => (
+                          <div key={item.id} className="flex justify-between py-2">
+                            <span className="text-slate-600 font-medium">{item.linenType.name}</span>
+                            <span className="font-bold text-slate-800">{item.quantity} {item.linenType.unit}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
+                    <button
+                      onClick={() => handleDeliver(t.id)}
+                      className="w-full bg-[#0066b2] hover:bg-blue-700 text-white font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer mt-4"
+                    >
+                      Đã chuẩn bị xong
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>

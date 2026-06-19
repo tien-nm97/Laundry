@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRealtimeSync } from '@/lib/useRealtimeSync'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 interface LinenType {
   id: string
@@ -68,6 +68,7 @@ const getPermissionsForRole = (role: string) => {
 }
 
 function AdminDashboardContent() {
+  const router = useRouter()
   const [linenTypes, setLinenTypes] = useState<LinenType[]>([])
   const [wards, setWards] = useState<Ward[]>([])
   const [orderlies, setOrderlies] = useState<Orderly[]>([])
@@ -138,6 +139,10 @@ function AdminDashboardContent() {
         }).join(''));
         const payload = JSON.parse(jsonPayload)
         setCurrentUsername(payload.username || '')
+        if (payload.role === 'SUPERVISOR') {
+          router.push('/admin/dispatch')
+          return
+        }
       }
     } catch (err) {
       console.error('Lỗi khi đọc token từ cookie:', err)

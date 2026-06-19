@@ -121,32 +121,26 @@ function AdminDashboardContent() {
 
   // Fetch initial data
   useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const data = await res.json()
+          setCurrentUsername(data.username || '')
+          if (data.role === 'SUPERVISOR') {
+            router.push('/admin/dispatch')
+          }
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải thông tin tài khoản:', err)
+      }
+    }
+    fetchProfile()
     fetchLinenTypes()
     fetchWards()
     fetchOrderlies()
     fetchUsers()
     setOrigin(window.location.origin)
-
-    // Parse current username from token cookie to protect actions locally
-    try {
-      const tokenCookie = document.cookie.split(';').find(c => c.trim().startsWith('token='))
-      if (tokenCookie) {
-        const token = tokenCookie.split('=')[1]
-        const base64Url = token.split('.')[1]
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const payload = JSON.parse(jsonPayload)
-        setCurrentUsername(payload.username || '')
-        if (payload.role === 'SUPERVISOR') {
-          router.push('/admin/dispatch')
-          return
-        }
-      }
-    } catch (err) {
-      console.error('Lỗi khi đọc token từ cookie:', err)
-    }
   }, [])
 
   // Supabase Realtime: auto-refresh when DB changes

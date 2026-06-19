@@ -36,7 +36,21 @@ export default function AdminDispatch() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'DELIVERED'>('ALL')
   const [wardFilter, setWardFilter] = useState<string>('ALL')
 
+  const [userRole, setUserRole] = useState('')
+
   useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const data = await res.json()
+          setUserRole(data.role || '')
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải thông tin tài khoản:', err)
+      }
+    }
+    fetchProfile()
     fetchTickets()
   }, [])
 
@@ -97,10 +111,12 @@ export default function AdminDispatch() {
       {/* Title */}
       <div>
         <h1 className="text-2xl font-extrabold text-[#0066b2]">
-          Giám sát Cấp phát Đồ vải
+          {userRole === 'ADMIN' ? 'Quản lý Cấp phát Đồ vải' : 'Giám sát Cấp phát Đồ vải'}
         </h1>
         <p className="text-xs text-slate-400 mt-1">
-          Theo dõi trực tiếp trạng thái yêu cầu cấp phát đồ vải hằng ngày từ các khoa phòng.
+          {userRole === 'ADMIN'
+            ? 'Theo dõi và xử lý trạng thái yêu cầu cấp phát đồ vải hằng ngày từ các khoa phòng.'
+            : 'Theo dõi trực tiếp trạng thái yêu cầu cấp phát đồ vải hằng ngày từ các khoa phòng.'}
         </p>
       </div>
 

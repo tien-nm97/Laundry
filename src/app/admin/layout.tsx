@@ -17,21 +17,18 @@ function AdminLayoutContent({
   const [userRole, setUserRole] = useState('')
 
   useEffect(() => {
-    try {
-      const tokenCookie = document.cookie.split(';').find(c => c.trim().startsWith('token='))
-      if (tokenCookie) {
-        const token = tokenCookie.split('=')[1]
-        const base64Url = token.split('.')[1]
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const payload = JSON.parse(jsonPayload)
-        setUserRole(payload.role || '')
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const data = await res.json()
+          setUserRole(data.role || '')
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải thông tin tài khoản:', err)
       }
-    } catch (err) {
-      console.error('Lỗi khi đọc token từ cookie:', err)
     }
+    fetchProfile()
   }, [])
 
   const handleLogout = async () => {
@@ -160,15 +157,15 @@ function AdminLayoutContent({
         {/* Sidebar Footer (User Info & Logout) */}
         <div className="p-4 border-t border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">
-              {userRole === 'ADMIN' ? 'AD' : 'SP'}
+            <div className={`w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs ${!userRole ? 'animate-pulse' : ''}`}>
+              {!userRole ? '...' : userRole === 'ADMIN' ? 'AD' : 'SP'}
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-slate-800 truncate">
-                {userRole === 'ADMIN' ? 'Quản trị viên' : 'Giám sát'}
+                {!userRole ? 'Đang tải...' : userRole === 'ADMIN' ? 'Quản trị viên' : 'Giám sát'}
               </span>
               <span className="text-[9px] text-slate-400 font-semibold uppercase truncate">
-                {userRole === 'ADMIN' ? 'Phòng Quản trị' : 'Phân khu Giám sát'}
+                {!userRole ? '...' : userRole === 'ADMIN' ? 'Phòng Quản trị' : 'Phân khu Giám sát'}
               </span>
             </div>
           </div>

@@ -108,5 +108,6 @@ enum Role {
 
 enum TicketStatus {
   PENDING
+  PREPARED
   DELIVERED
 }

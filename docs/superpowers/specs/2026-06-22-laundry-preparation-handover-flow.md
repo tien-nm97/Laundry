@@ -5,7 +5,7 @@ Tài liệu này mô tả thiết kế kỹ thuật cho việc cập nhật logi
 2. Nhân viên nhà giặt chuẩn bị đồ vải và xác nhận hoàn thành chuẩn bị.
 3. Phiếu chuyển sang danh sách sẵn sàng để kiểm tra lại và thực hiện bàn giao mà không thực hiện kiểm đếm đối chiếu khi giao nhận.
 4. Nghiệp vụ nhà giặt rút gọn chỉ còn đúng 2 tab: "Danh sách cần chuẩn bị" và "Danh sách sẵn sàng".
-5. Tích hợp lọc theo ngày (mặc định hiển thị ngày hiện tại). Phiếu của ngày cũ sẽ không xuất hiện để tránh gây rối cho nhân viên nhà giặt.
+5. Tích hợp hiển thị ngày tháng hiện tại (chỉ hiển thị dưới dạng văn bản tĩnh, không cho phép thay đổi) để nhân viên nhà giặt chỉ tập trung xử lý các phiếu của ngày hôm nay mà không bị nhầm lẫn.
 
 ---
 
@@ -18,16 +18,16 @@ Tài liệu này mô tả thiết kế kỹ thuật cho việc cập nhật logi
   * Khi Hộ lý tạo phiếu yêu cầu (API `POST /api/request/order`):
     * Nếu tạo vào **buổi chiều** (từ 12:00 trưa trở đi), ngày bàn giao mục tiêu (`deliveryDate`) tự động được đặt là **ngày hôm sau** (ngày mai).
     * Nếu tạo vào **buổi sáng** (trước 12:00 trưa), ngày bàn giao mục tiêu (`deliveryDate`) được đặt là **ngày hôm nay**.
-* **Hiển thị & Lọc theo ngày (Date Filter logic):**
-  * Nhân viên nhà giặt chỉ tập trung làm việc theo từng ngày. Do đó, giao diện nhà giặt sẽ hiển thị bộ chọn ngày (Date Picker) mặc định là **ngày hôm nay**.
-  * Chỉ các phiếu yêu cầu có ngày bàn giao mục tiêu trùng với ngày đang chọn mới được hiển thị. Khi ngày kết thúc (sang ngày mới), bộ chọn ngày mặc định nhảy sang ngày mới, giúp các phiếu của ngày cũ tự động ẩn đi để tránh gây rối cho nhân viên nhà giặt.
+* **Hiển thị ngày tháng cố định (Static Date Display):**
+  * Giao diện nhà giặt hiển thị ngày làm việc hiện tại dưới dạng text tĩnh (ví dụ: `Ngày 22/06/2026`). **Không có bộ chọn ngày, không cho phép chỉnh sửa hoặc đổi ngày.**
+  * Hệ thống chỉ tự động hiển thị các phiếu yêu cầu có ngày bàn giao mục tiêu trùng với ngày hiện tại (hoặc các phiếu chưa được hoàn thành của quá khứ nếu có, để đảm bảo không bị sót việc). Khi sang ngày mới, danh sách tự động chuyển sang hiển thị các phiếu của ngày mới.
 * **Giao diện nghiệp vụ Nhà giặt (`/laundry`):**
   * Chỉ hiển thị 2 tab chính: **"Danh sách cần chuẩn bị"** (hiển thị danh sách phiếu `PENDING`) và **"Danh sách sẵn sàng"** (hiển thị danh sách phiếu `PREPARED`).
-  * Tích hợp bộ hiển thị/chọn ngày ở phía trên danh sách.
+  * Hiển thị ngày tháng hiện tại tĩnh ở góc trên giao diện.
   * Loại bỏ các tab nghiệp vụ cũ không liên quan (`circulation` - Khai thác, `discard` - Báo hỏng, `report` - Báo cáo tuổi thọ) khỏi giao diện nhà giặt chính của nhân viên.
 * **Giao diện Bàn giao nhanh (`/laundry/dispatch`):**
   * Tách giao diện làm 2 phần tương tự: **"Danh sách cần chuẩn bị"** (dành cho phiếu `PENDING`, nút bấm **"Đã chuẩn bị xong"**) và **"Danh sách sẵn sàng"** (dành cho phiếu `PREPARED`, nút bấm **"Xác nhận bàn giao"**).
-  * Tích hợp hiển thị ngày tháng đang làm việc ở đầu trang và cho phép đổi ngày.
+  * Hiển thị ngày tháng hiện tại tĩnh ở đầu trang, không cho phép đổi ngày.
 * **Giao diện Giám sát Admin/Supervisor (`/admin/dispatch`):**
   * Cập nhật đếm số lượng thống kê theo 3 trạng thái: `Cần chuẩn bị` (PENDING), `Sẵn sàng bàn giao` (PREPARED), `Đã bàn giao` (DELIVERED).
   * Cho phép lọc và xem các phiếu ở cả 3 trạng thái.
@@ -66,8 +66,8 @@ enum TicketStatus {
 
 ### API Nghiệp vụ nhà giặt (`/api/laundry/tickets/route.ts`)
 * **`GET`**: 
-  * Nhận tham số truy vấn `date` (định dạng `YYYY-MM-DD`). Mặc định nếu không truyền sẽ lấy ngày hôm nay (theo giờ local).
-  * Lọc các phiếu có trạng thái `PENDING` hoặc `PREPARED` và có `deliveryDate` trùng với ngày được lọc.
+  * Nhận tham số truy vấn `date` (định dạng `YYYY-MM-DD`). Mặc định nếu không truyền hoặc không hợp lệ sẽ lấy ngày hiện tại (theo giờ local).
+  * Lọc các phiếu có trạng thái `PENDING` hoặc `PREPARED` và có `deliveryDate` nhỏ hơn hoặc bằng ngày được lọc (để hiển thị cả các phiếu cũ chưa hoàn thành nếu có) hoặc chính xác ngày được lọc. Để đơn giản và chính xác theo yêu cầu: lọc chính xác theo ngày `deliveryDate` trùng với ngày hiện tại.
     ```typescript
     const startOfDay = new Date(date)
     startOfDay.setHours(0, 0, 0, 0)
@@ -102,10 +102,11 @@ enum TicketStatus {
 * Cấu trúc Tabs:
   ```typescript
   const [activeTab, setActiveTab] = useState<'prepare' | 'ready'>('prepare')
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  // selectedDate luôn là ngày hôm nay và không đổi được từ UI
+  const selectedDate = new Date().toISOString().split('T')[0]
   ```
 * Bố cục:
-  * Phía trên thanh Tabs: Có thanh hiển thị ngày hiện tại dạng Input Date hoặc nút mũi tên chuyển ngày nhanh (Hôm nay / Hôm qua / Hôm sau).
+  * Phía trên thanh Tabs: Hiển thị ngày hôm nay dưới dạng text nổi bật, ví dụ: `<span className="...">Ngày làm việc: 22/06/2026</span>`.
   * Tab **"Danh sách cần chuẩn bị"**:
     * Hiển thị danh sách phiếu có `status === 'PENDING'`.
     * Chi tiết phiếu hiển thị nút: **"Đã chuẩn bị xong"** (gọi API chuyển trạng thái sang `PREPARED`).
@@ -114,8 +115,8 @@ enum TicketStatus {
     * Chi tiết phiếu hiển thị nút: **"Xác nhận bàn giao"** (gọi API chuyển trạng thái sang `DELIVERED`).
 
 ### Trang Bàn giao nhanh (`src/app/laundry/dispatch/page.tsx`)
-* Phía đầu trang có bộ chọn ngày: Mặc định là ngày hôm nay.
-* Chia đôi bố cục hoặc xếp chồng 2 danh sách rõ rệt cho ngày được chọn:
+* Phía đầu trang hiển thị ngày hôm nay dưới dạng văn bản tĩnh, ví dụ: `Ngày bàn giao: 22/06/2026`.
+* Chia đôi bố cục hoặc xếp chồng 2 danh sách rõ rệt của ngày hôm nay:
   * Nhóm phiếu **"Danh sách cần chuẩn bị"** (`status === 'PENDING'`) - Nút hành động: **"Đã chuẩn bị xong"**.
   * Nhóm phiếu **"Danh sách sẵn sàng"** (`status === 'PREPARED'`) - Nút hành động: **"Xác nhận bàn giao"**.
 

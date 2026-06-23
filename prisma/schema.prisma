@@ -110,4 +110,5 @@ enum TicketStatus {
   PENDING
   PREPARED
   DELIVERED
+  INCOMPLETE
 }

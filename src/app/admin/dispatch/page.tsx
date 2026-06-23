@@ -22,7 +22,7 @@ interface Ward {
 
 interface Ticket {
   id: string
-  status: 'PENDING' | 'DELIVERED'
+  status: 'PENDING' | 'PREPARED' | 'DELIVERED' | 'INCOMPLETE'
   requesterName: string
   createdAt: string
   deliveryDate: string
@@ -33,7 +33,7 @@ interface Ticket {
 export default function AdminDispatch() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'DELIVERED'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'PREPARED' | 'DELIVERED' | 'INCOMPLETE'>('ALL')
   const [wardFilter, setWardFilter] = useState<string>('ALL')
 
   const [userRole, setUserRole] = useState('')
@@ -79,7 +79,9 @@ export default function AdminDispatch() {
   // Calculate stats
   const totalCount = tickets.length
   const pendingCount = tickets.filter(t => t.status === 'PENDING').length
+  const preparedCount = tickets.filter(t => t.status === 'PREPARED').length
   const deliveredCount = tickets.filter(t => t.status === 'DELIVERED').length
+  const incompleteCount = tickets.filter(t => t.status === 'INCOMPLETE').length
   const fulfillmentRate = totalCount > 0 ? Math.round((deliveredCount / totalCount) * 100) : 0
 
   // Unique wards list for filtering
@@ -121,27 +123,26 @@ export default function AdminDispatch() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
           <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider">Tổng số yêu cầu</span>
           <span className="text-2xl font-extrabold text-slate-900 mt-2">{totalCount}</span>
         </div>
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-[#0066b2] text-xxs font-bold uppercase tracking-wider">Chờ bàn giao</span>
-          <span className="text-2xl font-extrabold text-[#0066b2] mt-2">{pendingCount}</span>
+          <span className="text-indigo-600 text-xxs font-bold uppercase tracking-wider">Chờ chuẩn bị</span>
+          <span className="text-2xl font-extrabold text-indigo-600 mt-2">{pendingCount}</span>
+        </div>
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+          <span className="text-amber-600 text-xxs font-bold uppercase tracking-wider">Sẵn sàng giao</span>
+          <span className="text-2xl font-extrabold text-amber-600 mt-2">{preparedCount}</span>
         </div>
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
           <span className="text-emerald-600 text-xxs font-bold uppercase tracking-wider">Đã bàn giao</span>
           <span className="text-2xl font-extrabold text-emerald-600 mt-2">{deliveredCount}</span>
         </div>
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider">Tỷ lệ hoàn thành</span>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-2xl font-extrabold text-slate-900">{fulfillmentRate}%</span>
-            <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 inline-block align-middle">
-              <div style={{ width: `${fulfillmentRate}%` }} className="bg-emerald-500 h-full rounded-full" />
-            </div>
-          </div>
+          <span className="text-rose-600 text-xxs font-bold uppercase tracking-wider">Chưa thực hiện</span>
+          <span className="text-2xl font-extrabold text-rose-600 mt-2">{incompleteCount}</span>
         </div>
       </div>
 
@@ -214,7 +215,17 @@ export default function AdminDispatch() {
                         : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    Chờ giao
+                    Chờ chuẩn bị
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('PREPARED')}
+                    className={`px-3 py-1 rounded-md text-xxs font-extrabold transition-all cursor-pointer ${
+                      statusFilter === 'PREPARED'
+                        ? 'bg-white text-[#0066b2] shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Sẵn sàng
                   </button>
                   <button
                     onClick={() => setStatusFilter('DELIVERED')}
@@ -225,6 +236,16 @@ export default function AdminDispatch() {
                     }`}
                   >
                     Đã giao
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('INCOMPLETE')}
+                    className={`px-3 py-1 rounded-md text-xxs font-extrabold transition-all cursor-pointer ${
+                      statusFilter === 'INCOMPLETE'
+                        ? 'bg-white text-[#0066b2] shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Chưa thực hiện
                   </button>
                 </div>
               </div>
@@ -274,9 +295,19 @@ export default function AdminDispatch() {
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                             t.status === 'DELIVERED'
                               ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                              : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                              : t.status === 'PENDING'
+                              ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                              : t.status === 'PREPARED'
+                              ? 'bg-amber-50 border-amber-100 text-amber-600'
+                              : 'bg-rose-50 border-rose-100 text-rose-600'
                           }`}>
-                            {t.status === 'DELIVERED' ? 'Đã giao' : 'Chờ giao'}
+                            {t.status === 'DELIVERED'
+                              ? 'Đã giao'
+                              : t.status === 'PENDING'
+                              ? 'Chờ chuẩn bị'
+                              : t.status === 'PREPARED'
+                              ? 'Sẵn sàng giao'
+                              : 'Chưa thực hiện'}
                           </span>
                         </td>
                       </tr>

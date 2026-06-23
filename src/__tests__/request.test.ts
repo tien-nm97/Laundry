@@ -86,6 +86,102 @@ describe('Ward QR Request Portal API', () => {
       })
     })
 
+    it('should set deliveryDate to today if created before 12:00 PM', async () => {
+      const RealDate = global.Date
+      const mockDate = new RealDate('2026-06-22T10:00:00+07:00')
+      // @ts-ignore
+      global.Date = class extends RealDate {
+        constructor(...args: any[]) {
+          if (args.length > 0) {
+            return new RealDate(...args as any)
+          }
+          return mockDate
+        }
+        static now() {
+          return mockDate.getTime()
+        }
+      }
+
+      try {
+        const body = {
+          wardId: testWard.id,
+          token: testWard.qrToken,
+          requesterName: 'Nguyễn Văn Hộ lý',
+          items: [
+            {
+              linenTypeId: testLinenType.id,
+              quantity: 15,
+            },
+          ],
+        }
+        const req = createRequest('POST', undefined, body)
+        const res = await POST(req)
+        expect(res.status).toBe(201)
+
+        const createdTicket = await res.json()
+        const delDate = new RealDate(createdTicket.deliveryDate)
+        expect(delDate.getUTCFullYear()).toBe(2026)
+        expect(delDate.getUTCMonth()).toBe(5)
+        expect(delDate.getUTCDate()).toBe(22)
+        expect(delDate.getUTCHours()).toBe(0)
+        expect(delDate.getUTCMinutes()).toBe(0)
+
+        await prisma.ticket.delete({
+          where: { id: createdTicket.id },
+        })
+      } finally {
+        global.Date = RealDate
+      }
+    })
+
+    it('should set deliveryDate to tomorrow if created after 12:00 PM', async () => {
+      const RealDate = global.Date
+      const mockDate = new RealDate('2026-06-22T14:00:00+07:00')
+      // @ts-ignore
+      global.Date = class extends RealDate {
+        constructor(...args: any[]) {
+          if (args.length > 0) {
+            return new RealDate(...args as any)
+          }
+          return mockDate
+        }
+        static now() {
+          return mockDate.getTime()
+        }
+      }
+
+      try {
+        const body = {
+          wardId: testWard.id,
+          token: testWard.qrToken,
+          requesterName: 'Nguyễn Văn Hộ lý',
+          items: [
+            {
+              linenTypeId: testLinenType.id,
+              quantity: 15,
+            },
+          ],
+        }
+        const req = createRequest('POST', undefined, body)
+        const res = await POST(req)
+        expect(res.status).toBe(201)
+
+        const createdTicket = await res.json()
+        const delDate = new RealDate(createdTicket.deliveryDate)
+        expect(delDate.getUTCFullYear()).toBe(2026)
+        expect(delDate.getUTCMonth()).toBe(5)
+        expect(delDate.getUTCDate()).toBe(23)
+        expect(delDate.getUTCHours()).toBe(0)
+        expect(delDate.getUTCMinutes()).toBe(0)
+
+        await prisma.ticket.delete({
+          where: { id: createdTicket.id },
+        })
+      } finally {
+        global.Date = RealDate
+      }
+    })
+
     it('should reject submission with 401 if token is invalid', async () => {
       const body = {
         wardId: testWard.id,

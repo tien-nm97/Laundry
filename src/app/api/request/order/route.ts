@@ -122,12 +122,23 @@ export async function POST(request: Request) {
 
     // Create Ticket and TicketItems in a transaction
     const newTicket = await prisma.$transaction(async (tx) => {
+      const now = new Date()
+      // Adjust to UTC+7 (Vietnam Time)
+      const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+      const vnHours = vnTime.getUTCHours()
+
+      const deliveryDate = new Date(now)
+      if (vnHours >= 12) {
+        deliveryDate.setDate(deliveryDate.getDate() + 1)
+      }
+      deliveryDate.setHours(0, 0, 0, 0)
+
       const ticket = await tx.ticket.create({
         data: {
           wardId: ward.id,
           status: 'PENDING',
           requesterName: requesterName.trim(),
-          deliveryDate: new Date(),
+          deliveryDate: deliveryDate,
           items: {
             create: items.map((item: any) => ({
               linenTypeId: item.linenTypeId,

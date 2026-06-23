@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { verifyPermission } from '@/lib/jwt'
+import { autoExpireTickets } from '@/lib/expire-helper'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -11,6 +12,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    await autoExpireTickets()
     const tickets = await prisma.ticket.findMany({
       include: {
         ward: true,

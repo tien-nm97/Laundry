@@ -3,6 +3,7 @@
  */
 import { GET, PUT } from '../app/api/dispatch/tickets/route'
 import { prisma } from '../lib/db'
+import { autoExpireTickets } from '../lib/expire-helper'
 
 describe('Public Dispatch Tickets API', () => {
   let testWard: any
@@ -46,16 +47,59 @@ describe('Public Dispatch Tickets API', () => {
     expect(tickets.some((t: any) => t.id === testTicket.id)).toBe(true)
   })
 
-  it('should mark a ticket as delivered via PUT', async () => {
-    const req = new Request('http://localhost/api/dispatch/tickets', {
+  it('should transition a ticket PENDING -> PREPARED -> DELIVERED via PUT', async () => {
+    // PENDING -> PREPARED
+    const req1 = new Request('http://localhost/api/dispatch/tickets', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ticketId: testTicket.id }),
     })
-    const res = await PUT(req as any)
-    expect(res.status).toBe(200)
+    const res1 = await PUT(req1 as any)
+    expect(res1.status).toBe(200)
+    const updated1 = await res1.json()
+    expect(updated1.status).toBe('PREPARED')
 
-    const updated = await res.json()
-    expect(updated.status).toBe('DELIVERED')
+    // PREPARED -> DELIVERED
+    const req2 = new Request('http://localhost/api/dispatch/tickets', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId: testTicket.id }),
+    })
+    const res2 = await PUT(req2 as any)
+    expect(res2.status).toBe(200)
+    const updated2 = await res2.json()
+    expect(updated2.status).toBe('DELIVERED')
+  })
+
+  it('should auto-expire PENDING tickets older than 24 hours to INCOMPLETE', async () => {
+    // Create an expired ticket
+    const expiredTicket = await prisma.ticket.create({
+      data: {
+        wardId: testWard.id,
+        status: 'PENDING',
+        requesterName: 'Test Expired',
+        deliveryDate: new Date(),
+        createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000), // 25 hours ago
+        items: {
+          create: [{ linenTypeId: testLinenType.id, quantity: 2 }],
+        },
+      },
+    })
+
+    try {
+      // Run autoExpireTickets
+      await autoExpireTickets()
+
+      // Fetch from DB directly to verify status
+      const checkTicket = await prisma.ticket.findUnique({
+        where: { id: expiredTicket.id },
+      })
+      expect(checkTicket?.status).toBe('INCOMPLETE')
+    } finally {
+      // Clean up
+      await prisma.ticket.deleteMany({
+        where: { id: expiredTicket.id },
+      })
+    }
   })
 })

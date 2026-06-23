@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { verifyLaundryRequest } from '@/lib/jwt'
+import { autoExpireTickets } from '@/lib/expire-helper'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -11,6 +12,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    await autoExpireTickets()
     const tickets = await prisma.ticket.findMany({
       where: { status: 'PENDING' },
       include: {
@@ -58,20 +60,29 @@ export async function PUT(request: Request) {
       )
     }
 
-    if (ticket.status === 'DELIVERED') {
+    let nextStatus: 'PREPARED' | 'DELIVERED'
+    let updateData: any = {}
+
+    if (ticket.status === 'PENDING') {
+      nextStatus = 'PREPARED'
+      updateData = { status: nextStatus }
+    } else if (ticket.status === 'PREPARED') {
+      nextStatus = 'DELIVERED'
+      updateData = {
+        status: nextStatus,
+        deliveryDate: new Date(),
+      }
+    } else {
       return NextResponse.json(
-        { error: 'Phiếu yêu cầu này đã được bàn giao từ trước' },
+        { error: 'Phiếu yêu cầu này đã được xử lý xong từ trước' },
         { status: 400 }
       )
     }
 
-    // Update status to DELIVERED and set delivery date to now
+    // Update status and set delivery date if DELIVERED
     const updatedTicket = await prisma.ticket.update({
       where: { id: ticketId },
-      data: {
-        status: 'DELIVERED',
-        deliveryDate: new Date(),
-      },
+      data: updateData,
       include: {
         items: {
           include: {

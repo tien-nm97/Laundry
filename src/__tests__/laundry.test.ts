@@ -93,12 +93,19 @@ describe('Laundry Operations API', () => {
       const tickets = await getRes.json()
       expect(tickets.some((t: any) => t.id === ticket.id)).toBe(true)
 
-      // 3. Mark ticket as DELIVERED
+      // 3. Mark ticket as PREPARED
       const putReq = createRequest('PUT', { ticketId: ticket.id }, laundryToken)
       const putRes = await putTicket(putReq)
       expect(putRes.status).toBe(200)
       const updated = await putRes.json()
-      expect(updated.status).toBe('DELIVERED')
+      expect(updated.status).toBe('PREPARED')
+
+      // 4. Mark ticket as DELIVERED
+      const putReq2 = createRequest('PUT', { ticketId: ticket.id }, laundryToken)
+      const putRes2 = await putTicket(putReq2)
+      expect(putRes2.status).toBe(200)
+      const updated2 = await putRes2.json()
+      expect(updated2.status).toBe('DELIVERED')
 
       // Clean up
       await prisma.ticket.delete({ where: { id: ticket.id } })

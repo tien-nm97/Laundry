@@ -97,21 +97,13 @@ export default function DispatchPage() {
             </div>
             <div>
               <span className="font-extrabold text-lg text-[#0066b2] tracking-tight">BECAMEX HOSPITAL</span>
-              <span className="text-xxs block text-slate-500 font-bold tracking-widest uppercase -mt-1">Laundry Dispatch</span>
             </div>
-          </div>
-          <div className="px-4 py-1.5 bg-slate-100 rounded-full text-xs font-semibold text-slate-600 border border-slate-200/50">
-            Chế độ vận hành nhanh
           </div>
         </div>
       </header>
 
       {/* Content */}
       <main className="max-w-7xl w-full mx-auto px-4 py-8 flex-1 flex flex-col space-y-6">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-blue-50 text-[#0066b2] rounded flex items-center justify-center font-bold">🩺</div>
-          <h1 className="text-2xl font-extrabold text-slate-900">Chuẩn bị & Bàn giao nhanh đồ vải</h1>
-        </div>
 
         {message && (
           <div className={`p-4 rounded-xl border font-bold text-sm ${message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700'}`}>
@@ -127,8 +119,7 @@ export default function DispatchPage() {
         ) : (
           <div className="w-full bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-5">
             <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-              Danh sách phiếu chờ giao ngày {new Date().toLocaleDateString('vi-VN')}
+              Danh sách phiếu chờ giao <span className="text-red-600">ngày {new Date().toLocaleDateString('vi-VN')}</span>
             </h2>
 
             {tickets.length === 0 ? (
@@ -136,31 +127,28 @@ export default function DispatchPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {tickets.map((t) => (
-                  <div key={t.id} className="bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 p-4 rounded-2xl flex flex-col justify-between transition-all">
-                    <div className="space-y-3">
+                  <div key={t.id} className="bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 p-3.5 rounded-2xl flex flex-col justify-between transition-all">
+                    <div className="space-y-2.5">
                       <div className="flex justify-between items-start">
-                        <div className="flex flex-col items-start gap-1.5">
-                          <span className="font-extrabold text-xs text-[#0066b2] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/40">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="font-extrabold text-sm text-black bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
                             {t.ward?.name}
                           </span>
-                          <span className={`text-xxs font-extrabold px-2 py-0.5 rounded-full border ${
+                          <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full border ${
                             t.status === 'PENDING'
-                              ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                              ? 'bg-blue-50 border-blue-100 text-blue-600'
                               : 'bg-amber-50 border-amber-100 text-amber-600'
                           }`}>
                             {t.status === 'PENDING' ? 'Chờ chuẩn bị' : 'Sẵn sàng giao'}
                           </span>
                         </div>
-                        <span className="font-mono text-xxs font-bold text-slate-400">
-                          #{t.id.split('-')[0].toUpperCase()}
-                        </span>
                       </div>
 
-                      <div className="divide-y divide-slate-100 text-xs py-1 border-t border-b border-slate-100">
+                      <div className="divide-y divide-slate-100 py-0.5 border-t border-b border-slate-100">
                         {t.items.map((item) => (
-                          <div key={item.id} className="flex justify-between py-2">
-                            <span className="text-slate-600 font-medium">{item.linenType.name}</span>
-                            <span className="font-bold text-slate-800">{item.quantity} {item.linenType.unit}</span>
+                          <div key={item.id} className="flex justify-between py-2 items-center">
+                            <span className="text-slate-700 font-semibold text-sm">{item.linenType.name}</span>
+                            <span className="font-extrabold text-base text-slate-900">{item.quantity} {item.linenType.unit}</span>
                           </div>
                         ))}
                       </div>
@@ -168,7 +156,7 @@ export default function DispatchPage() {
 
                     <button
                       onClick={() => handleDeliver(t)}
-                      className={`w-full text-white font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer mt-4 ${
+                      className={`w-full text-white font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer mt-3.5 ${
                         t.status === 'PENDING'
                           ? 'bg-[#0066b2] hover:bg-blue-700'
                           : 'bg-emerald-600 hover:bg-emerald-700'

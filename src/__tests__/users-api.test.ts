@@ -25,6 +25,11 @@ describe('Users Administration API', () => {
       role: 'LAUNDRY',
       permissions: ['laundry:view']
     })
+
+    // Clean up any leftover test user to prevent "username already exists" errors
+    await prisma.user.deleteMany({
+      where: { username: 'newtestuser' }
+    })
   })
 
   afterAll(async () => {

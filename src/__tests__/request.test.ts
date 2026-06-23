@@ -60,7 +60,7 @@ describe('Ward QR Request Portal API', () => {
       const body = {
         wardId: testWard.id,
         token: testWard.qrToken,
-        requesterName: 'Nguyễn Văn Hộ lý',
+        requesterName: 'TEST',
         items: [
           {
             linenTypeId: testLinenType.id,
@@ -75,7 +75,7 @@ describe('Ward QR Request Portal API', () => {
       const createdTicket = await res.json()
       expect(createdTicket.status).toBe('PENDING')
       expect(createdTicket.wardId).toBe(testWard.id)
-      expect(createdTicket.requesterName).toBe('Nguyễn Văn Hộ lý')
+      expect(createdTicket.requesterName).toBe('TEST')
       expect(createdTicket.items.length).toBe(1)
       expect(createdTicket.items[0].linenTypeId).toBe(testLinenType.id)
       expect(createdTicket.items[0].quantity).toBe(15)
@@ -106,7 +106,7 @@ describe('Ward QR Request Portal API', () => {
         const body = {
           wardId: testWard.id,
           token: testWard.qrToken,
-          requesterName: 'Nguyễn Văn Hộ lý',
+          requesterName: 'TEST',
           items: [
             {
               linenTypeId: testLinenType.id,
@@ -154,7 +154,7 @@ describe('Ward QR Request Portal API', () => {
         const body = {
           wardId: testWard.id,
           token: testWard.qrToken,
-          requesterName: 'Nguyễn Văn Hộ lý',
+          requesterName: 'TEST',
           items: [
             {
               linenTypeId: testLinenType.id,
@@ -186,7 +186,7 @@ describe('Ward QR Request Portal API', () => {
       const body = {
         wardId: testWard.id,
         token: 'invalid-token-code',
-        requesterName: 'Nguyễn Văn Hộ lý',
+        requesterName: 'TEST',
         items: [
           {
             linenTypeId: testLinenType.id,
@@ -203,7 +203,7 @@ describe('Ward QR Request Portal API', () => {
       const body = {
         wardId: testWard.id,
         token: testWard.qrToken,
-        requesterName: 'Nguyễn Văn Hộ lý',
+        requesterName: 'TEST',
         items: [],
       }
       const req = createRequest('POST', undefined, body)

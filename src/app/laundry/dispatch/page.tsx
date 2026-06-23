@@ -17,6 +17,7 @@ interface TicketItem {
 interface Ticket {
   id: string
   ward: { name: string }
+  status: 'PENDING' | 'PREPARED' | 'DELIVERED'
   createdAt: string
   deliveryDate: string
   items: TicketItem[]
@@ -50,18 +51,23 @@ export default function DispatchPage() {
     setTimeout(() => setMessage(null), 4000)
   }
 
-  const handleDeliver = async (ticketId: string) => {
+  const handleDeliver = async (ticket: Ticket) => {
     try {
       const res = await fetch('/api/dispatch/tickets', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticketId }),
+        body: JSON.stringify({ ticketId: ticket.id }),
       })
       if (res.ok) {
-        showFeedback('success', 'Đã chuẩn bị xong!')
+        const updated = await res.json()
+        if (updated.status === 'PREPARED') {
+          showFeedback('success', 'Đã chuẩn bị xong!')
+        } else if (updated.status === 'DELIVERED') {
+          showFeedback('success', 'Đã bàn giao đồ vải thành công!')
+        }
         fetchTickets()
       } else {
-        showFeedback('error', 'Lỗi xác nhận bàn giao')
+        showFeedback('error', 'Lỗi xác nhận cập nhật phiếu')
       }
     } catch (err) {
       showFeedback('error', 'Lỗi kết nối')
@@ -133,9 +139,18 @@ export default function DispatchPage() {
                   <div key={t.id} className="bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 p-4 rounded-2xl flex flex-col justify-between transition-all">
                     <div className="space-y-3">
                       <div className="flex justify-between items-start">
-                        <span className="font-extrabold text-xs text-[#0066b2] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/40">
-                          {t.ward?.name}
-                        </span>
+                        <div className="flex flex-col items-start gap-1.5">
+                          <span className="font-extrabold text-xs text-[#0066b2] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/40">
+                            {t.ward?.name}
+                          </span>
+                          <span className={`text-xxs font-extrabold px-2 py-0.5 rounded-full border ${
+                            t.status === 'PENDING'
+                              ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                              : 'bg-amber-50 border-amber-100 text-amber-600'
+                          }`}>
+                            {t.status === 'PENDING' ? 'Chờ chuẩn bị' : 'Sẵn sàng giao'}
+                          </span>
+                        </div>
                         <span className="font-mono text-xxs font-bold text-slate-400">
                           #{t.id.split('-')[0].toUpperCase()}
                         </span>
@@ -152,10 +167,14 @@ export default function DispatchPage() {
                     </div>
 
                     <button
-                      onClick={() => handleDeliver(t.id)}
-                      className="w-full bg-[#0066b2] hover:bg-blue-700 text-white font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer mt-4"
+                      onClick={() => handleDeliver(t)}
+                      className={`w-full text-white font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer mt-4 ${
+                        t.status === 'PENDING'
+                          ? 'bg-[#0066b2] hover:bg-blue-700'
+                          : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
                     >
-                      Đã chuẩn bị xong
+                      {t.status === 'PENDING' ? 'Đã chuẩn bị xong' : 'Xác nhận bàn giao'}
                     </button>
                   </div>
                 ))}

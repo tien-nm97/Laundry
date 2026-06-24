@@ -66,6 +66,7 @@ export default function LaundryDashboard() {
   // Lists state
   const [pendingTickets, setPendingTickets] = useState<Ticket[]>([])
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [deliverySubTab, setDeliverySubTab] = useState<'prepare' | 'ready'>('prepare')
 
   const [batches, setBatches] = useState<Batch[]>([])
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null)
@@ -88,6 +89,7 @@ export default function LaundryDashboard() {
   useEffect(() => {
     loadTabData()
     setSelectedTicket(null)
+    setDeliverySubTab('prepare')
     setSelectedBatch(null)
     setSelectedCirculation(null)
     setSelectedReport(null)
@@ -115,14 +117,24 @@ export default function LaundryDashboard() {
     setTimeout(() => setMessage(null), 4000)
   }
 
-  const fetchPendingTickets = async () => {
+  const fetchPendingTickets = async (targetSubTab?: 'prepare' | 'ready') => {
     setLoading(true)
     try {
       const res = await fetch('/api/laundry/tickets')
       if (res.ok) {
         const data = await res.json()
         setPendingTickets(data)
-        if (data.length > 0) setSelectedTicket(data[0])
+        
+        // Auto-select first ticket in the currently selected sub-tab
+        const activeSub = targetSubTab || deliverySubTab
+        const filtered = data.filter((t: any) =>
+          activeSub === 'prepare' ? t.status === 'PENDING' : t.status === 'PREPARED'
+        )
+        if (filtered.length > 0) {
+          setSelectedTicket(filtered[0])
+        } else {
+          setSelectedTicket(null)
+        }
       }
     } catch (err) {
       console.error(err)
@@ -184,8 +196,13 @@ export default function LaundryDashboard() {
         body: JSON.stringify({ ticketId }),
       })
       if (res.ok) {
-        showFeedback('success', 'Đã bàn giao đồ vải thành công!')
-        fetchPendingTickets()
+        const updated = await res.json()
+        if (updated.status === 'PREPARED') {
+          showFeedback('success', 'Đã chuẩn bị xong!')
+        } else if (updated.status === 'DELIVERED') {
+          showFeedback('success', 'Đã bàn giao đồ vải thành công!')
+        }
+        fetchPendingTickets(deliverySubTab)
       } else {
         const data = await res.json()
         showFeedback('error', data.error || 'Bàn giao thất bại')
@@ -349,61 +366,110 @@ export default function LaundryDashboard() {
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm min-h-[500px]">
             {/* Delivery View */}
             {activeTab === 'delivery' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left list: 30% */}
-                <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-6 space-y-4">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Phiếu chờ giao</h3>
-                  {pendingTickets.length === 0 ? (
-                    <p className="text-sm text-slate-400 py-6 text-center">Không có phiếu yêu cầu nào.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-[400px] overflow-auto">
-                      {pendingTickets.map((t) => (
-                        <div
-                          key={t.id}
-                          onClick={() => setSelectedTicket(t)}
-                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
-                            selectedTicket?.id === t.id
-                              ? 'bg-blue-50/50 border-[#0066b2]/30'
-                              : 'bg-slate-50 border-slate-100 hover:border-slate-300'
-                          }`}
-                        >
-                          <h4 className="font-bold text-sm text-slate-800">{t.ward?.name}</h4>
-                          <div className="flex justify-between text-xxs text-slate-500 font-semibold mt-1">
-                            <span>#{t.id.split('-')[0].toUpperCase()}</span>
-                            <span>{new Date(t.createdAt).toLocaleTimeString('vi-VN')}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              <div className="space-y-6">
+                {/* Date and Sub-tabs Selection */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold px-3 py-1.5 bg-blue-50 text-[#0066b2] rounded-xl border border-blue-100/50">
+                      Ngày làm việc: {new Date().toLocaleDateString('vi-VN')}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setDeliverySubTab('prepare')
+                        const firstPending = pendingTickets.find(t => t.status === 'PENDING')
+                        setSelectedTicket(firstPending || null)
+                      }}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        deliverySubTab === 'prepare'
+                          ? 'bg-[#1e293b] text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      1. Chờ chuẩn bị ({pendingTickets.filter(t => t.status === 'PENDING').length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDeliverySubTab('ready')
+                        const firstPrepared = pendingTickets.find(t => t.status === 'PREPARED')
+                        setSelectedTicket(firstPrepared || null)
+                      }}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        deliverySubTab === 'ready'
+                          ? 'bg-[#1e293b] text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      2. Chuẩn bị bàn giao ({pendingTickets.filter(t => t.status === 'PREPARED').length})
+                    </button>
+                  </div>
                 </div>
 
-                {/* Right panel: 70% */}
-                <div className="lg:col-span-2 space-y-5 pl-0 lg:pl-6">
-                  {selectedTicket ? (
-                    <div className="space-y-4">
-                      <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
-                        <h3 className="font-extrabold text-base text-slate-900">{selectedTicket.ward?.name}</h3>
-                        <span className="font-mono text-xs font-semibold text-slate-400">#{selectedTicket.id.split('-')[0].toUpperCase()}</span>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Left list: 30% */}
+                  <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-6 space-y-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      {deliverySubTab === 'prepare' ? 'Phiếu chờ chuẩn bị' : 'Phiếu sẵn sàng bàn giao'}
+                    </h3>
+                    {pendingTickets.filter(t => deliverySubTab === 'prepare' ? t.status === 'PENDING' : t.status === 'PREPARED').length === 0 ? (
+                      <p className="text-sm text-slate-400 py-6 text-center">Không có phiếu yêu cầu nào.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-[400px] overflow-auto">
+                        {pendingTickets
+                          .filter(t => deliverySubTab === 'prepare' ? t.status === 'PENDING' : t.status === 'PREPARED')
+                          .map((t) => (
+                            <div
+                              key={t.id}
+                              onClick={() => setSelectedTicket(t)}
+                              className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                                selectedTicket?.id === t.id
+                                  ? 'bg-blue-50/50 border-[#0066b2]/30'
+                                  : 'bg-slate-50 border-slate-100 hover:border-slate-300'
+                              }`}
+                            >
+                              <h4 className="font-bold text-sm text-slate-800">{t.ward?.name}</h4>
+                              <div className="flex justify-between text-xxs text-slate-500 font-semibold mt-1">
+                                <span>#{t.id.split('-')[0].toUpperCase()}</span>
+                                <span>{new Date(t.createdAt).toLocaleTimeString('vi-VN')}</span>
+                              </div>
+                            </div>
+                          ))}
                       </div>
-                      <div className="divide-y divide-slate-100">
-                        {selectedTicket.items.map((item) => (
-                          <div key={item.id} className="flex justify-between py-3 text-sm font-semibold">
-                            <span className="text-slate-600">{item.linenType.name}</span>
-                            <span className="text-slate-800">{item.quantity} {item.linenType.unit}</span>
-                          </div>
-                        ))}
+                    )}
+                  </div>
+
+                  {/* Right panel: 70% */}
+                  <div className="lg:col-span-2 space-y-5 pl-0 lg:pl-6">
+                    {selectedTicket ? (
+                      <div className="space-y-4">
+                        <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
+                          <h3 className="font-extrabold text-base text-slate-900">{selectedTicket.ward?.name}</h3>
+                          <span className="font-mono text-xs font-semibold text-slate-400">#{selectedTicket.id.split('-')[0].toUpperCase()}</span>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {selectedTicket.items.map((item) => (
+                            <div key={item.id} className="flex justify-between py-3 text-sm font-semibold">
+                              <span className="text-slate-600">{item.linenType.name}</span>
+                              <span className="text-slate-800">{item.quantity} {item.linenType.unit}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => handleDeliverTicket(selectedTicket.id)}
+                          className={`w-full text-white font-bold py-2.5 rounded-xl text-sm transition-all cursor-pointer shadow-md ${
+                            selectedTicket.status === 'PENDING'
+                              ? 'bg-[#0066b2] hover:bg-blue-700 shadow-blue-500/10'
+                              : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/10'
+                          }`}
+                        >
+                          {selectedTicket.status === 'PENDING' ? 'Đã chuẩn bị xong' : 'Xác nhận Bàn giao (Giao đủ)'}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleDeliverTicket(selectedTicket.id)}
-                        className="w-full bg-[#0066b2] hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-sm transition-all cursor-pointer shadow-md shadow-blue-500/10"
-                      >
-                        Xác nhận Bàn giao (Giao đủ)
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-20 text-slate-400 text-sm">Vui lòng chọn một phiếu yêu cầu bên trái.</div>
-                  )}
+                    ) : (
+                      <div className="text-center py-20 text-slate-400 text-sm">Vui lòng chọn một phiếu yêu cầu bên trái.</div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

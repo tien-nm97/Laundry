@@ -33,8 +33,11 @@ Tài liệu này mô tả thiết kế kỹ thuật cho việc cập nhật logi
     * **Chuẩn bị bàn giao**: Hiển thị danh sách các phiếu có trạng thái `PREPARED`.
   * Hiển thị ngày tháng hiện tại tĩnh bên cạnh các sub-tabs trong tab Bàn giao (không cho phép đổi ngày).
 * **Giao diện Bàn giao nhanh (`/laundry/dispatch`):**
-  * Tách giao diện làm 2 phần tương tự: **"Danh sách cần chuẩn bị"** (dành cho phiếu `PENDING`, nút bấm **"Xong"**) và **"Danh sách sẵn sàng"** (dành cho phiếu `PREPARED`, nút bấm **"Xác nhận bàn giao"**).
-  * Hiển thị ngày tháng hiện tại tĩnh ở đầu trang, không cho phép đổi ngày.
+  * Giữ nguyên giao diện dạng lưới thẻ (grid of cards) hiển thị danh sách phiếu chờ giao trong ngày.
+  * Từng thẻ phiếu hiển thị trạng thái và nút hành động động:
+    * Phiếu có trạng thái `PENDING`: Hiển thị nhãn "Chờ chuẩn bị" (màu xanh dương) và nút hành động "Đã chuẩn bị xong". Khi bấm, gọi API chuyển trạng thái thành `PREPARED`.
+    * Phiếu có trạng thái `PREPARED`: Hiển thị nhãn "Sẵn sàng giao" (màu cam) và nút hành động "Xác nhận bàn giao" (màu xanh lá). Khi bấm, gọi API chuyển trạng thái thành `DELIVERED`.
+  * Hiển thị ngày bàn giao hiện tại tĩnh ở tiêu đề (ví dụ: `Danh sách phiếu chờ giao ngày DD/MM/YYYY`), không cho phép thay đổi ngày.
 * **Giao diện Giám sát Admin/Supervisor (`/admin/dispatch`):**
   * Cập nhật đếm số lượng thống kê theo 3 trạng thái: `Cần chuẩn bị` (PENDING), `Sẵn sàng bàn giao` (PREPARED), `Đã bàn giao` (DELIVERED).
   * Cho phép lọc và xem các phiếu ở cả 3 trạng thái.
@@ -125,10 +128,10 @@ enum TicketStatus {
     * Khi click hoàn thành, màn hình **giữ nguyên sub-tab "Chuẩn bị bàn giao"** (`deliverySubTab === 'ready'`). Tải lại dữ liệu và tự động chọn phiếu tiếp theo trong danh sách làm phiếu active (hoặc `null` nếu danh sách trống).
 
 ### Trang Bàn giao nhanh (`src/app/laundry/dispatch/page.tsx`)
-* Phía đầu trang hiển thị ngày hôm nay dưới dạng văn bản tĩnh, ví dụ: `Ngày bàn giao: 22/06/2026`.
-* Chia đôi bố cục hoặc xếp chồng 2 danh sách rõ rệt của ngày hôm nay:
-  * Nhóm phiếu **"Danh sách cần chuẩn bị"** (`status === 'PENDING'`) - Nút hành động: **"Xong"** (hoặc **"Đã chuẩn bị xong"**).
-  * Nhóm phiếu **"Danh sách sẵn sàng"** (`status === 'PREPARED'`) - Nút hành động: **"Xác nhận bàn giao"**.
+* Giữ nguyên cấu trúc lưới thẻ như hiện tại, hiển thị tiêu đề tĩnh ngày hôm nay: `Danh sách phiếu chờ giao ngày {new Date().toLocaleDateString('vi-VN')}`.
+* Trạng thái và nút của mỗi thẻ thay đổi linh hoạt theo `t.status`:
+  * Nếu là `PENDING`: Nhãn trạng thái hiển thị "Chờ chuẩn bị" (màu xanh dương/indigo nhạt), nút bấm hiển thị "Đã chuẩn bị xong" (màu xanh dương).
+  * Nếu là `PREPARED`: Nhãn trạng thái hiển thị "Sẵn sàng giao" (màu cam/amber nhạt), nút bấm hiển thị "Xác nhận bàn giao" (màu xanh lá/emerald).
 
 ### Trang Giám sát Admin/Supervisor (`src/app/admin/dispatch/page.tsx`)
 * **Thống kê (Stats Cards):**

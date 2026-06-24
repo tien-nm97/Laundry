@@ -13,8 +13,18 @@ export async function GET(request: Request) {
 
   try {
     await autoExpireTickets()
+
+    const now = new Date()
+    const endOfToday = new Date(now)
+    endOfToday.setHours(23, 59, 59, 999)
+
     const tickets = await prisma.ticket.findMany({
-      where: { status: 'PENDING' },
+      where: {
+        status: { in: ['PENDING', 'PREPARED'] },
+        deliveryDate: {
+          lte: endOfToday,
+        },
+      },
       include: {
         ward: true,
         items: {

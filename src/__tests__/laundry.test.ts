@@ -100,6 +100,13 @@ describe('Laundry Operations API', () => {
       const updated = await putRes.json()
       expect(updated.status).toBe('PREPARED')
 
+      // Verify GET returns PREPARED tickets too
+      const getReq2 = createRequest('GET', null, laundryToken)
+      const getRes2 = await getTickets(getReq2)
+      expect(getRes2.status).toBe(200)
+      const ticketsAfterPrep = await getRes2.json()
+      expect(ticketsAfterPrep.some((t: any) => t.id === ticket.id && t.status === 'PREPARED')).toBe(true)
+
       // 4. Mark ticket as DELIVERED
       const putReq2 = createRequest('PUT', { ticketId: ticket.id }, laundryToken)
       const putRes2 = await putTicket(putReq2)

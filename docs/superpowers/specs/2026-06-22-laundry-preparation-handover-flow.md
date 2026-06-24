@@ -4,8 +4,8 @@ Tài liệu này mô tả thiết kế kỹ thuật cho việc cập nhật logi
 1. Hộ lý khoa phòng nhập yêu cầu.
 2. Nhân viên nhà giặt chuẩn bị đồ vải và xác nhận hoàn thành chuẩn bị.
 3. Phiếu chuyển sang danh sách sẵn sàng để kiểm tra lại và thực hiện bàn giao mà không thực hiện kiểm đếm đối chiếu khi giao nhận.
-4. Nghiệp vụ nhà giặt rút gọn chỉ còn đúng 2 tab: "Danh sách cần chuẩn bị" và "Danh sách sẵn sàng".
-5. Tích hợp hiển thị ngày tháng hiện tại (chỉ hiển thị dưới dạng văn bản tĩnh, không cho phép thay đổi) để nhân viên nhà giặt chỉ tập trung xử lý các phiếu của ngày hôm nay mà không bị nhầm lẫn.
+4. Giao diện nhà giặt giữ nguyên cấu trúc 4 tab chính, trong đó tab "Bàn giao đồ vải" sẽ tích hợp thêm 2 sub-tabs: "Chờ chuẩn bị" và "Chuẩn bị bàn giao".
+5. Tích hợp hiển thị ngày tháng hiện tại (chỉ hiển thị dưới dạng văn bản tĩnh, không cho phép thay đổi) bên cạnh sub-tabs trong tab Bàn giao để nhân viên nhà giặt chỉ tập trung xử lý các phiếu của ngày hôm nay mà không bị nhầm lẫn.
 
 ---
 
@@ -27,9 +27,11 @@ Tài liệu này mô tả thiết kế kỹ thuật cho việc cập nhật logi
   * **Màn hình giao diện vẫn giữ nguyên ở tab "Danh sách cần chuẩn bị"**, giúp nhân viên tiếp tục soạn các phiếu tiếp theo mà không bị chuyển tab tự động.
   * Phiếu được chọn tiếp theo trên danh sách hiển thị chi tiết (nếu có) sẽ tự động là phiếu đầu tiên còn lại trong danh sách (hoặc `null` nếu danh sách trống).
 * **Giao diện nghiệp vụ Nhà giặt (`/laundry`):**
-  * Chỉ hiển thị 2 tab chính: **"Danh sách cần chuẩn bị"** (hiển thị danh sách phiếu `PENDING`) và **"Danh sách sẵn sàng"** (hiển thị danh sách phiếu `PREPARED`).
-  * Hiển thị ngày tháng hiện tại tĩnh ở góc trên giao diện.
-  * Loại bỏ các tab nghiệp vụ cũ không liên quan (`circulation` - Khai thác, `discard` - Báo hỏng, `report` - Báo cáo tuổi thọ) khỏi giao diện nhà giặt chính của nhân viên.
+  * Giữ nguyên cấu trúc 4 tab chính: **Bàn giao đồ vải** (`delivery`), **Khai thác đồ vải** (`circulation`), **Báo hỏng / Thanh lý** (`discard`), **Báo cáo tuổi thọ** (`report`).
+  * Trong tab **Bàn giao đồ vải** (`delivery`), thêm 2 sub-tabs:
+    * **Chờ chuẩn bị**: Hiển thị danh sách các phiếu có trạng thái `PENDING`.
+    * **Chuẩn bị bàn giao**: Hiển thị danh sách các phiếu có trạng thái `PREPARED`.
+  * Hiển thị ngày tháng hiện tại tĩnh bên cạnh các sub-tabs trong tab Bàn giao (không cho phép đổi ngày).
 * **Giao diện Bàn giao nhanh (`/laundry/dispatch`):**
   * Tách giao diện làm 2 phần tương tự: **"Danh sách cần chuẩn bị"** (dành cho phiếu `PENDING`, nút bấm **"Xong"**) và **"Danh sách sẵn sàng"** (dành cho phiếu `PREPARED`, nút bấm **"Xác nhận bàn giao"**).
   * Hiển thị ngày tháng hiện tại tĩnh ở đầu trang, không cho phép đổi ngày.
@@ -104,21 +106,23 @@ enum TicketStatus {
 ## 4. Thiết kế Giao diện (User Interface Flow)
 
 ### Trang Nghiệp vụ Nhà giặt (`src/app/laundry/page.tsx`)
-* Cấu trúc Tabs:
+* Cấu trúc Tabs chính: Giữ nguyên `activeTab` dạng `'delivery' | 'circulation' | 'discard' | 'report'`.
+* Trong giao diện tab Bàn giao (`activeTab === 'delivery'`), khai báo thêm state cho sub-tab:
   ```typescript
-  const [activeTab, setActiveTab] = useState<'prepare' | 'ready'>('prepare')
-  // selectedDate luôn là ngày hôm nay và không đổi được từ UI
-  const selectedDate = new Date().toISOString().split('T')[0]
+  const [deliverySubTab, setDeliverySubTab] = useState<'prepare' | 'ready'>('prepare')
   ```
-* Bố cục & Hành vi:
-  * Phía trên thanh Tabs: Hiển thị ngày hôm nay dưới dạng text nổi bật, ví dụ: `<span className="...">Ngày làm việc: 22/06/2026</span>`.
-  * Tab **"Danh sách cần chuẩn bị"**:
-    * Hiển thị danh sách phiếu có `status === 'PENDING'`.
-    * Chi tiết phiếu hiển thị nút: **"Xong"** (hoặc **"Đã chuẩn bị xong"**). Khi nhấn, gọi API cập nhật trạng thái phiếu thành `PREPARED`.
-    * **Giữ nguyên trạng thái `activeTab === 'prepare'`**. Phiếu đã hoàn thành biến mất khỏi danh sách bên trái. Phiếu được hiển thị chi tiết tiếp theo sẽ là phiếu đầu tiên còn lại trong danh sách (hoặc `null` nếu hết phiếu).
-  * Tab **"Danh sách sẵn sàng"**:
-    * Hiển thị danh sách phiếu có `status === 'PREPARED'`.
-    * Chi tiết phiếu hiển thị nút: **"Xác nhận bàn giao"** (gọi API chuyển trạng thái sang `DELIVERED`).
+* Bố cục & Hành vi trong tab **Bàn giao đồ vải**:
+  * Phía trên khu vực danh sách: Hiển thị ngày làm việc hôm nay cố định (dạng text: `Ngày làm việc: DD/MM/YYYY`) và 2 nút sub-tabs:
+    * **1. Chờ chuẩn bị (X)**: Hiển thị số lượng và danh sách phiếu `PENDING`.
+    * **2. Chuẩn bị bàn giao (Y)**: Hiển thị số lượng và danh sách phiếu `PREPARED`.
+  * Sub-tab **"Chờ chuẩn bị"**:
+    * Hiển thị danh sách phiếu có `status === 'PENDING'` và có `deliveryDate` trong ngày hiện tại trở về trước.
+    * Chi tiết phiếu hiển thị nút hành động: **"Đã chuẩn bị xong"** (gọi API cập nhật trạng thái phiếu thành `PREPARED`).
+    * Khi click hoàn thành, màn hình **giữ nguyên sub-tab "Chờ chuẩn bị"** (`deliverySubTab === 'prepare'`). Tải lại dữ liệu và tự động chọn phiếu tiếp theo trong danh sách làm phiếu active (hoặc `null` nếu danh sách trống).
+  * Sub-tab **"Chuẩn bị bàn giao"**:
+    * Hiển thị danh sách phiếu có `status === 'PREPARED'` và có `deliveryDate` trong ngày hiện tại trở về trước.
+    * Chi tiết phiếu hiển thị nút hành động: **"Xác nhận Bàn giao (Giao đủ)"** (gọi API cập nhật trạng thái phiếu thành `DELIVERED`).
+    * Khi click hoàn thành, màn hình **giữ nguyên sub-tab "Chuẩn bị bàn giao"** (`deliverySubTab === 'ready'`). Tải lại dữ liệu và tự động chọn phiếu tiếp theo trong danh sách làm phiếu active (hoặc `null` nếu danh sách trống).
 
 ### Trang Bàn giao nhanh (`src/app/laundry/dispatch/page.tsx`)
 * Phía đầu trang hiển thị ngày hôm nay dưới dạng văn bản tĩnh, ví dụ: `Ngày bàn giao: 22/06/2026`.

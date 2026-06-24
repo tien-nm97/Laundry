@@ -71,15 +71,15 @@ describe('Public Dispatch Tickets API', () => {
     expect(updated2.status).toBe('DELIVERED')
   })
 
-  it('should auto-expire PENDING tickets older than 24 hours to INCOMPLETE', async () => {
-    // Create an expired ticket
+  it('should auto-expire PENDING tickets past the 12:00 PM next day deadline to INCOMPLETE', async () => {
+    // Create an expired ticket (created 2 days ago, guaranteed to be expired)
     const expiredTicket = await prisma.ticket.create({
       data: {
         wardId: testWard.id,
         status: 'PENDING',
         requesterName: 'Test Expired',
         deliveryDate: new Date(),
-        createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000), // 25 hours ago
+        createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48 hours ago
         items: {
           create: [{ linenTypeId: testLinenType.id, quantity: 2 }],
         },

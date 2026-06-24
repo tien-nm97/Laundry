@@ -26,7 +26,7 @@ describe('Laundry Operations API', () => {
     // Create a temporary batch to test extraction
     testBatch = await prisma.batch.create({
       data: {
-        code: `L-BATCH-${Date.now()}`,
+        code: `TEST-L-BATCH-${Date.now()}`,
         linenTypeId: testLinenType.id,
         totalQuantity: 200,
         remainingQuantity: 200,

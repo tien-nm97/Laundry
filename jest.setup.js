@@ -41,8 +41,8 @@ afterAll(async () => {
           circulation: {
             batch: {
               OR: [
-                { code: { startsWith: 'BATCH-' } },
-                { code: { startsWith: 'L-BATCH-' } }
+                { code: { startsWith: 'TEST-BATCH-' } },
+                { code: { startsWith: 'TEST-L-BATCH-' } }
               ]
             }
           }
@@ -53,8 +53,8 @@ afterAll(async () => {
         where: {
           batch: {
             OR: [
-              { code: { startsWith: 'BATCH-' } },
-              { code: { startsWith: 'L-BATCH-' } }
+              { code: { startsWith: 'TEST-BATCH-' } },
+              { code: { startsWith: 'TEST-L-BATCH-' } }
             ]
           }
         }
@@ -63,8 +63,8 @@ afterAll(async () => {
       await prisma.batch.deleteMany({
         where: {
           OR: [
-            { code: { startsWith: 'BATCH-' } },
-            { code: { startsWith: 'L-BATCH-' } }
+            { code: { startsWith: 'TEST-BATCH-' } },
+            { code: { startsWith: 'TEST-L-BATCH-' } }
           ]
         }
       })

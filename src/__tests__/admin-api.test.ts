@@ -21,7 +21,7 @@ describe('Admin API Endpoints', () => {
     // Clean up test batches
     await prisma.batch.deleteMany({
       where: {
-        code: { startsWith: 'BATCH-' }
+        code: { startsWith: 'TEST-BATCH-' }
       }
     })
 
@@ -123,7 +123,7 @@ describe('Admin API Endpoints', () => {
       const lt = await prisma.linenType.findFirst()
       expect(lt).not.toBeNull()
 
-      const uniqueCode = `BATCH-${Date.now()}`
+      const uniqueCode = `TEST-BATCH-${Date.now()}`
       const body = {
         code: uniqueCode,
         linenTypeId: lt!.id,

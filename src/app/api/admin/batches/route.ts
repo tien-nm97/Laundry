@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { verifyPermission } from '@/lib/jwt'
+import { verifyPermission, verifyToken } from '@/lib/jwt'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -25,9 +25,34 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await verifyPermission(request, 'admin:batch')
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const cookieHeader = request.headers.get('cookie') || ''
+  let token: string | undefined = undefined
+  const cookieList = cookieHeader.split(';')
+  for (const cookie of cookieList) {
+    const [name, val] = cookie.trim().split('=')
+    if (name === 'token') {
+      token = val
+      break
+    }
+  }
+
+  if (!token) {
+    return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 })
+  }
+
+  const payload = await verifyToken(token)
+  if (!payload) {
+    return NextResponse.json({ error: 'Phiên làm việc hết hạn hoặc không hợp lệ' }, { status: 401 })
+  }
+
+  const userPerms = payload.permissions || []
+  const hasPermission =
+    payload.role === 'ADMIN' ||
+    userPerms.includes('admin:batch') ||
+    userPerms.includes('supervisor:laundry_procure')
+
+  if (!hasPermission) {
+    return NextResponse.json({ error: 'Không có quyền thực hiện thao tác này' }, { status: 403 })
   }
 
   try {

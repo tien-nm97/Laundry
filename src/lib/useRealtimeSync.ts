@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-type RealtimeTable = 'Staff' | 'Khoa' | 'LinenType' | 'Batch' | 'LinenCirculation' | 'LinenDiscardLog' | 'Ticket' | 'TicketItem' | 'User'
+type RealtimeTable = 'Staff' | 'Khoa' | 'LinenType' | 'Batch' | 'LinenCirculation' | 'LinenDiscardLog' | 'Ticket' | 'TicketItem' | 'User' | 'LinenRecycleProposal'
 
 /**
  * Hook to subscribe to Supabase Realtime changes on one or more tables.

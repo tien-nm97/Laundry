@@ -72,10 +72,24 @@ export async function GET(request: Request) {
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     })
 
+    // 5. Get recycle proposals (for tracking and approval list)
+    const recycleProposals = await prisma.linenRecycleProposal.findMany({
+      include: {
+        circulation: {
+          include: {
+            linenType: true,
+            batch: true,
+          }
+        }
+      },
+      orderBy: { proposedAt: 'desc' },
+    })
+
     return NextResponse.json({
       inventory,
       batches,
       activeCirculations,
+      recycleProposals,
     })
   } catch (error: unknown) {
     console.error('GET inventory error:', error)

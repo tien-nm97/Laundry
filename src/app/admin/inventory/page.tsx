@@ -41,6 +41,24 @@ interface ActiveCirculation {
   startUseDate: string
 }
 
+interface RecycleProposal {
+  id: string
+  linenCirculationId: string
+  quantity: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  recycledQuantity?: number | null
+  proposerName: string
+  approverName?: string | null
+  proposedAt: string
+  approvedAt?: string | null
+  circulation: {
+    linenType: LinenType
+    batch: {
+      code: string
+    }
+  }
+}
+
 export default function AdminInventory() {
   const [inventory, setInventory] = useState<AggregatedInventory[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
@@ -71,6 +89,16 @@ export default function AdminInventory() {
   // Form 3: Minimum Stock State
   const [showMinStockModal, setShowMinStockModal] = useState(false)
   const [minStockInputs, setMinStockInputs] = useState<Record<string, number | ''>>({})
+
+  // Recycle Proposals & Roles States
+  const [recycleProposals, setRecycleProposals] = useState<RecycleProposal[]>([])
+  const [userRole, setUserRole] = useState('')
+  const [userPermissions, setUserPermissions] = useState<string[]>([])
+
+  // Modal Approve Control
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [selectedProposal, setSelectedProposal] = useState<RecycleProposal | null>(null)
+  const [adminRecycledQty, setAdminRecycledQty] = useState<number | ''>('')
 
   const generatedBatchCode = `BATCH-${importDate.replace(/-/g, '')}`
 
@@ -121,6 +149,7 @@ export default function AdminInventory() {
         setInventory(data.inventory || [])
         setBatches(data.batches || [])
         setActiveCirculations(data.activeCirculations || [])
+        setRecycleProposals(data.recycleProposals || [])
       }
     } catch (err) {
       console.error('Error fetching inventory aggregated:', err)
@@ -149,16 +178,30 @@ export default function AdminInventory() {
     setTimeout(() => setMessage(null), 4000)
   }
 
+  const fetchUserProfile = async () => {
+    try {
+      const res = await fetch('/api/auth/me')
+      if (res.ok) {
+        const data = await res.json()
+        setUserRole(data.role || '')
+        setUserPermissions(data.permissions || [])
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err)
+    }
+  }
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchInventoryData()
       fetchLinenTypes()
+      fetchUserProfile()
     }, 0)
     return () => clearTimeout(timer)
   }, [])
 
   useRealtimeSync(
-    ['Batch', 'LinenCirculation', 'LinenDiscardLog', 'LinenType'],
+    ['Batch', 'LinenCirculation', 'LinenDiscardLog', 'LinenType', 'LinenRecycleProposal'],
     () => {
       fetchInventoryData()
     },
@@ -258,28 +301,34 @@ export default function AdminInventory() {
       return
     }
 
-    if (recycleAction === 'RECYCLE' && (!recycledPillowQty || Number(recycledPillowQty) <= 0)) {
-      showFeedback('error', 'Vui lòng nhập số vỏ gối thu hồi thực tế')
-      return
-    }
-
     setSubmitting(true)
     try {
-      const res = await fetch('/api/admin/inventory/recycle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          linenCirculationId: selectedCirculationId,
-          discardQuantity: Number(discardQty),
-          action: recycleAction,
-          recycledQuantity: recycleAction === 'RECYCLE' ? Number(recycledPillowQty) : undefined
+      let res
+      if (recycleAction === 'RECYCLE') {
+        res = await fetch('/api/admin/inventory/recycle/propose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            linenCirculationId: selectedCirculationId,
+            quantity: Number(discardQty)
+          })
         })
-      })
+      } else {
+        res = await fetch('/api/admin/inventory/recycle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            linenCirculationId: selectedCirculationId,
+            discardQuantity: Number(discardQty),
+            action: 'DISCARD'
+          })
+        })
+      }
 
       const data = await res.json()
       if (res.ok) {
         showFeedback('success', recycleAction === 'RECYCLE' 
-          ? 'Đã báo hỏng & chuyển sang tái chế thành công!' 
+          ? 'Đã gửi đề xuất tái chế đồ vải thành công, chờ Admin phê duyệt!' 
           : 'Đã báo hỏng thanh lý đồ vải thành công!')
         setSelectedCirculationId('')
         setDiscardQty('')
@@ -296,6 +345,72 @@ export default function AdminInventory() {
     }
   }
 
+
+  const handleApproveProposal = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedProposal || !adminRecycledQty || Number(adminRecycledQty) <= 0) {
+      showFeedback('error', 'Vui lòng nhập số lượng vỏ gối thu hồi hợp lệ')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/inventory/recycle/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposalId: selectedProposal.id,
+          action: 'APPROVED',
+          recycledQuantity: Number(adminRecycledQty),
+        })
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        showFeedback('success', 'Phê duyệt và hòa nhập kho thành công!')
+        setShowApproveModal(false)
+        setSelectedProposal(null)
+        setAdminRecycledQty('')
+        fetchInventoryData()
+      } else {
+        showFeedback('error', data.error || 'Lỗi khi phê duyệt đề xuất')
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleRejectProposal = async (proposalId: string) => {
+    if (!confirm('Bạn có chắc chắn muốn từ chối đề xuất tái chế này không?')) {
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/inventory/recycle/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposalId,
+          action: 'REJECTED'
+        })
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        showFeedback('success', 'Đã từ chối đề xuất tái chế!')
+        fetchInventoryData()
+      } else {
+        showFeedback('error', data.error || 'Lỗi khi từ chối đề xuất')
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   // Find the oldest active circulation IDs for each linen type (for FIFO recommendation)
   const oldestCirculationIds = new Set<string>()
@@ -343,15 +458,17 @@ export default function AdminInventory() {
         </div>
         
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              if (linenTypes.length > 0) setSelectedLinenTypeId(linenTypes[0].id)
-              setShowImportModal(true)
-            }}
-            className="px-4 py-2 bg-[#0066b2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/10 cursor-pointer"
-          >
-            ＋ Nhập lô hàng mới
-          </button>
+          {(userRole === 'ADMIN' || userPermissions.includes('supervisor:laundry_procure') || userPermissions.includes('admin:batch')) && (
+            <button
+              onClick={() => {
+                if (linenTypes.length > 0) setSelectedLinenTypeId(linenTypes[0].id)
+                setShowImportModal(true)
+              }}
+              className="px-4 py-2 bg-[#0066b2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/10 cursor-pointer"
+            >
+              ＋ Nhập lô hàng mới
+            </button>
+          )}
           <button
             onClick={() => setShowRecycleModal(true)}
             className="px-4 py-2 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100/60 rounded-xl text-xs font-bold transition-all cursor-pointer"
@@ -392,16 +509,18 @@ export default function AdminInventory() {
                   <th className="px-4 py-3 font-bold text-slate-900 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <span>Tồn tối thiểu</span>
-                      <button
-                        type="button"
-                        onClick={openMinStockModal}
-                        title="Chỉnh sửa định mức tồn tối thiểu"
-                        className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer p-0.5 rounded hover:bg-slate-100/80 flex items-center justify-center"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
+                      {(userRole === 'ADMIN' || userPermissions.includes('supervisor:laundry_damage') || userPermissions.includes('supervisor:laundry_procure') || userPermissions.includes('admin:batch')) && (
+                        <button
+                          type="button"
+                          onClick={openMinStockModal}
+                          title="Chỉnh sửa định mức tồn tối thiểu"
+                          className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer p-0.5 rounded hover:bg-slate-100/80 flex items-center justify-center"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </th>
                 </tr>
@@ -426,6 +545,105 @@ export default function AdminInventory() {
                     <td className="px-4 py-4 text-center font-black text-slate-900 bg-slate-50/30">{item.minStock}</td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Recycle Proposals Table */}
+      <div className="bg-white border border-slate-200/85 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          Yêu cầu tái chế đồ vải (Drap sang Vỏ gối)
+        </h2>
+
+        {recycleProposals.length === 0 ? (
+          <div className="text-center py-12 text-slate-400 text-xs font-semibold">Chưa có đề xuất tái chế nào.</div>
+        ) : (
+          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-4 py-3 font-bold text-slate-500">Lô đồ vải đề xuất</th>
+                  <th className="px-4 py-3 font-bold text-slate-500 text-center">SL ga giường hỏng</th>
+                  <th className="px-4 py-3 font-bold text-slate-500">Người đề xuất</th>
+                  <th className="px-4 py-3 font-bold text-slate-500">Ngày đề xuất</th>
+                  <th className="px-4 py-3 font-bold text-slate-500 text-center">Trạng thái</th>
+                  <th className="px-4 py-3 font-bold text-slate-500 text-center">SL vỏ gối thu hồi</th>
+                  <th className="px-4 py-3 font-bold text-slate-500">Người duyệt</th>
+                  <th className="px-4 py-3 font-bold text-slate-500 text-center">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {recycleProposals.map((proposal) => {
+                  const circulationName = proposal.circulation?.linenType?.name || 'Đồ vải'
+                  const batchCode = proposal.circulation?.batch?.code || 'Không rõ'
+                  return (
+                    <tr key={proposal.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-4 font-bold text-slate-700">
+                        <div>{circulationName}</div>
+                        <div className="text-xxs font-normal text-slate-400">Lô gốc: {batchCode}</div>
+                      </td>
+                      <td className="px-4 py-4 text-center font-bold text-rose-600">{proposal.quantity}</td>
+                      <td className="px-4 py-4 text-slate-600 font-medium">{proposal.proposerName}</td>
+                      <td className="px-4 py-4 text-slate-500">
+                        {new Date(proposal.proposedAt).toLocaleDateString('vi-VN')} {new Date(proposal.proposedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {proposal.status === 'PENDING' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xxs font-extrabold bg-amber-50 text-amber-600 border border-amber-100/30">
+                            Chờ duyệt
+                          </span>
+                        )}
+                        {proposal.status === 'APPROVED' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xxs font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-100/30">
+                            Đã duyệt
+                          </span>
+                        )}
+                        {proposal.status === 'REJECTED' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xxs font-extrabold bg-red-50 text-red-600 border border-red-100/30">
+                            Từ chối
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center font-bold text-emerald-600">
+                        {proposal.recycledQuantity !== null && proposal.recycledQuantity !== undefined ? `${proposal.recycledQuantity} cái` : '-'}
+                      </td>
+                      <td className="px-4 py-4 text-slate-600">
+                        {proposal.approverName || '-'}
+                        {proposal.approvedAt && (
+                          <div className="text-[10px] text-slate-400 font-normal">
+                            {new Date(proposal.approvedAt).toLocaleDateString('vi-VN')}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {proposal.status === 'PENDING' && userRole === 'ADMIN' ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedProposal(proposal)
+                                setShowApproveModal(true)
+                              }}
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 rounded-lg text-xxs font-bold transition-all cursor-pointer"
+                            >
+                              Duyệt
+                            </button>
+                            <button
+                              onClick={() => handleRejectProposal(proposal.id)}
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xxs font-bold transition-all cursor-pointer"
+                            >
+                              Từ chối
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -716,7 +934,7 @@ export default function AdminInventory() {
                       <span>Thanh lý / Hủy bỏ thông thường</span>
                     </label>
                     
-                    {isEligibleForRecycling && (
+                    {isEligibleForRecycling && (userRole === 'ADMIN' || userPermissions.includes('supervisor:laundry_damage') || userPermissions.includes('admin:batch')) && (
                       <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
                         <input
                           type="radio"
@@ -733,18 +951,8 @@ export default function AdminInventory() {
 
               {recycleAction === 'RECYCLE' && (
                 <div className="space-y-2 border-t border-slate-100 pt-3 animate-fade-in">
-                  <label className="block text-xxs text-slate-500 mb-1 font-bold">Số lượng vỏ gối thu hồi thực tế</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={recycledPillowQty}
-                    onChange={(e) => setRecycledPillowQty(e.target.value !== '' ? Number(e.target.value) : '')}
-                    placeholder="SL vỏ gối nhận được từ nhà cung cấp"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2]"
-                    required
-                  />
-                  <p className="text-[10px] text-amber-600 font-semibold leading-relaxed">
-                    * Số lượng này sẽ tự động tạo một lô hàng nhập (Batch) mới cho loại đồ vải &quot;Vỏ gối&quot;.
+                  <p className="text-[11px] text-emerald-600 font-bold leading-relaxed">
+                    * Yêu cầu này sẽ được gửi tới Quản trị viên (Admin) dưới dạng đề xuất chờ duyệt. Admin sẽ nhập số lượng vỏ gối thu hồi thực tế khi phê duyệt để tự động cập nhật kho.
                   </p>
                 </div>
               )}
@@ -762,7 +970,7 @@ export default function AdminInventory() {
                   disabled={submitting}
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer"
                 >
-                  {submitting ? 'Đang xử lý...' : 'Xác nhận xử lý'}
+                  {submitting ? 'Đang xử lý...' : (recycleAction === 'RECYCLE' ? 'Gửi đề xuất tái chế' : 'Xác nhận xử lý')}
                 </button>
               </div>
             </form>
@@ -827,6 +1035,76 @@ export default function AdminInventory() {
                   className="px-4 py-2 bg-[#0066b2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer"
                 >
                   {submitting ? 'Đang xử lý...' : 'Lưu cấu hình'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: Admin Approve Proposal */}
+      {showApproveModal && selectedProposal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-scale-up">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-slate-900">Phê duyệt tái chế đồ vải</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowApproveModal(false)
+                  setSelectedProposal(null)
+                  setAdminRecycledQty('')
+                }}
+                className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleApproveProposal} className="p-6 space-y-4">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 text-xs text-slate-600 space-y-2">
+                <h4 className="font-bold text-slate-700">Thông tin đề xuất:</h4>
+                <p>• Loại đồ vải: <strong>{selectedProposal.circulation?.linenType?.name || 'Đồ vải'}</strong></p>
+                <p>• Mã lô: <strong>{selectedProposal.circulation?.batch?.code || 'Không rõ'}</strong></p>
+                <p>• Số lượng drap báo hỏng để tái chế: <strong className="text-rose-600">{selectedProposal.quantity} tấm</strong></p>
+                <p>• Người đề xuất: <strong>{selectedProposal.proposerName}</strong></p>
+                <p>• Ngày đề xuất: <strong>{new Date(selectedProposal.proposedAt).toLocaleDateString('vi-VN')}</strong></p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-700 mb-1 font-bold">Số lượng vỏ gối thu hồi thực tế</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={adminRecycledQty}
+                  onChange={(e) => setAdminRecycledQty(e.target.value !== '' ? Number(e.target.value) : '')}
+                  placeholder="Nhập số lượng vỏ gối nhận từ nhà may"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2]"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
+                  * Khi xác nhận, hệ thống sẽ tự động trừ {selectedProposal.quantity} tấm ga giường khỏi lượng lưu thông của lô tương ứng, đồng thời tạo một lô hàng nhập &quot;Vỏ gối&quot; mới với trữ lượng trên.
+                </p>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowApproveModal(false)
+                    setSelectedProposal(null)
+                    setAdminRecycledQty('')
+                  }}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  {submitting ? 'Đang xử lý...' : 'Xác nhận duyệt'}
                 </button>
               </div>
             </form>

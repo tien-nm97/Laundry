@@ -23,7 +23,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Phiên làm việc hết hạn hoặc không hợp lệ' }, { status: 401 })
   }
 
-  const hasPermission = payload.role === 'ADMIN' || payload.role === 'SUPERVISOR' || (payload.permissions || []).includes('admin:batch')
+  const userPerms = payload.permissions || []
+  const hasPermission =
+    payload.role === 'ADMIN' ||
+    userPerms.includes('supervisor:laundry_damage') ||
+    userPerms.includes('supervisor:laundry_procure') ||
+    userPerms.includes('admin:batch')
+
   if (!hasPermission) {
     return NextResponse.json({ error: 'Không có quyền thực hiện thao tác này' }, { status: 403 })
   }

@@ -49,9 +49,10 @@ model LinenCirculation {
   activeQuantity    Int
   discardedQuantity Int               @default(0)
   createdAt         DateTime          @default(now())
-  batch             Batch             @relation(fields: [batchId], references: [id])
-  linenType         LinenType         @relation(fields: [linenTypeId], references: [id])
+  batch             Batch                  @relation(fields: [batchId], references: [id])
+  linenType         LinenType              @relation(fields: [linenTypeId], references: [id])
   discardLogs       LinenDiscardLog[]
+  recycleProposals  LinenRecycleProposal[]
 }
 
 model LinenDiscardLog {
@@ -112,4 +113,23 @@ enum TicketStatus {
   PREPARED
   DELIVERED
   INCOMPLETE
+}
+
+enum ProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LinenRecycleProposal {
+  id                 String           @id @default(uuid())
+  linenCirculationId String
+  quantity           Int
+  status             ProposalStatus   @default(PENDING)
+  recycledQuantity   Int?
+  proposerName       String
+  approverName       String?
+  proposedAt         DateTime         @default(now())
+  approvedAt         DateTime?
+  circulation        LinenCirculation @relation(fields: [linenCirculationId], references: [id], onDelete: Cascade)
 }

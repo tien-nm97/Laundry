@@ -41,8 +41,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Số lượng báo hỏng phải lớn hơn 0' }, { status: 400 })
     }
 
-    if (action === 'RECYCLE' && (recycledQuantity === undefined || Number(recycledQuantity) <= 0)) {
-      return NextResponse.json({ error: 'Số lượng vỏ gối thu hồi tái chế không hợp lệ' }, { status: 400 })
+    if (action === 'RECYCLE') {
+      return NextResponse.json(
+        { error: 'Yêu cầu tái chế phải được thực hiện thông qua quy trình đề xuất và phê duyệt' },
+        { status: 400 }
+      )
     }
 
     const result = await prisma.$transaction(async (tx) => {

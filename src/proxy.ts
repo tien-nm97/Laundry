@@ -32,9 +32,10 @@ export async function proxy(request: NextRequest) {
 
     if (isProtectedAdmin) {
       const isDispatchRoute = pathname.startsWith('/admin/dispatch')
+      const isInventoryRoute = pathname.startsWith('/admin/inventory')
       if (payload.role === 'ADMIN') {
         // Allowed
-      } else if (payload.role === 'SUPERVISOR' && isDispatchRoute) {
+      } else if (payload.role === 'SUPERVISOR' && (isDispatchRoute || isInventoryRoute)) {
         // Allowed
       } else {
         const loginUrl = new URL('/login', request.url)

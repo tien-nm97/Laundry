@@ -106,6 +106,14 @@ describe('Next.js Proxy Authentication', () => {
     }
   });
 
+  it('should allow SUPERVISOR users to access /admin/inventory', async () => {
+    const req = createMockRequest('http://localhost/admin/inventory', supervisorToken);
+    const res = await proxy(req);
+    if (res) {
+      expect(res.headers.get('location')).toBeNull();
+    }
+  });
+
   it('should redirect SUPERVISOR users trying to access other /admin routes to /login', async () => {
     const req = createMockRequest('http://localhost/admin', supervisorToken);
     const res = await proxy(req);

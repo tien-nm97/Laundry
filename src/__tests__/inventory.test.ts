@@ -5,14 +5,15 @@ import { GET } from '../app/api/admin/inventory/route'
 import { POST } from '../app/api/admin/inventory/recycle/route'
 import { prisma } from '../lib/db'
 import { signToken } from '../lib/jwt'
+import { Batch, LinenType, LinenCirculation } from '@prisma/client'
 
 describe('Inventory & Recycling Admin APIs', () => {
   let adminToken: string
   let supervisorToken: string
   let laundryToken: string
-  let testBatch: any
-  let testLinenTypeDrap: any
-  let testCirculation: any
+  let testBatch: Batch
+  let testLinenTypeDrap: LinenType
+  let testCirculation: LinenCirculation
 
   beforeAll(async () => {
     adminToken = await signToken({ userId: '1', username: 'admin', role: 'ADMIN' })
@@ -64,7 +65,7 @@ describe('Inventory & Recycling Admin APIs', () => {
     })
   })
 
-  const createRequest = (method: string, cookieToken?: string, body?: any) => {
+  const createRequest = (method: string, cookieToken?: string, body?: unknown) => {
     const headers: Record<string, string> = {}
     if (cookieToken) {
       headers['cookie'] = `token=${cookieToken}`
@@ -76,7 +77,7 @@ describe('Inventory & Recycling Admin APIs', () => {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined
-    }) as any
+    }) as unknown as Request
   }
 
   describe('GET /api/admin/inventory', () => {

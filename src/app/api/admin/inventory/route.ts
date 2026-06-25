@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       batches,
       activeCirculations,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('GET inventory error:', error)
     return NextResponse.json({ error: 'Lỗi khi tải dữ liệu kho' }, { status: 500 })
   }

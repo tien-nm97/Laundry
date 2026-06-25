@@ -126,8 +126,9 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json(result, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('POST inventory recycle error:', error)
-    return NextResponse.json({ error: error.message || 'Lỗi hệ thống khi báo hỏng/tái chế' }, { status: 400 })
+    const errorMessage = error instanceof Error ? error.message : 'Lỗi hệ thống khi báo hỏng/tái chế'
+    return NextResponse.json({ error: errorMessage }, { status: 400 })
   }
 }

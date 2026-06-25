@@ -19,6 +19,7 @@ model LinenType {
   id           String             @id @default(uuid())
   name         String             @unique
   unit         String
+  minStock     Int                @default(0)
   createdAt    DateTime           @default(now())
   batches      Batch[]
   circulations LinenCirculation[]

@@ -16,6 +16,7 @@ interface AggregatedInventory {
   originalStock: number
   inCirculation: number
   discarded: number
+  minStock: number
   totalAccumulated: number
 }
 
@@ -67,7 +68,50 @@ export default function AdminInventory() {
   const [recycleAction, setRecycleAction] = useState<'DISCARD' | 'RECYCLE'>('DISCARD')
   const [recycledPillowQty, setRecycledPillowQty] = useState<number | ''>('')
 
+  // Form 3: Minimum Stock State
+  const [showMinStockModal, setShowMinStockModal] = useState(false)
+  const [minStockInputs, setMinStockInputs] = useState<Record<string, number | ''>>({})
+
   const generatedBatchCode = `BATCH-${importDate.replace(/-/g, '')}`
+
+  const openMinStockModal = () => {
+    const inputs: Record<string, number | ''> = {}
+    inventory.forEach((item) => {
+      inputs[item.linenTypeId] = item.minStock || 0
+    })
+    setMinStockInputs(inputs)
+    setShowMinStockModal(true)
+  }
+
+  const handleMinStockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const payload = Object.entries(minStockInputs).map(([linenTypeId, val]) => ({
+        linenTypeId,
+        minStock: val === '' ? 0 : Number(val),
+      }))
+
+      const res = await fetch('/api/admin/inventory/min-stock', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        showFeedback('success', 'Cập nhật định mức tồn tối thiểu thành công!')
+        setShowMinStockModal(false)
+        fetchInventoryData()
+      } else {
+        showFeedback('error', data.error || 'Lỗi khi cập nhật định mức')
+      }
+    } catch (err) {
+      showFeedback('error', 'Lỗi kết nối')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const fetchInventoryData = async () => {
     try {
@@ -373,7 +417,21 @@ export default function AdminInventory() {
                   <th className="px-4 py-3 font-bold text-slate-700 text-center">Tồn kho gốc</th>
                   <th className="px-4 py-3 font-bold text-blue-600 text-center">Đang lưu hành</th>
                   <th className="px-4 py-3 font-bold text-rose-500 text-center">Đã báo hỏng</th>
-                  <th className="px-4 py-3 font-bold text-slate-900 text-center">Tổng tích lũy</th>
+                  <th className="px-4 py-3 font-bold text-slate-900 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span>Tồn tối thiểu</span>
+                      <button
+                        type="button"
+                        onClick={openMinStockModal}
+                        title="Chỉnh sửa định mức tồn tối thiểu"
+                        className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer p-0.5 rounded hover:bg-slate-100/80 flex items-center justify-center"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -381,10 +439,19 @@ export default function AdminInventory() {
                   <tr key={item.linenTypeId} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-4 font-bold text-slate-700">{item.name}</td>
                     <td className="px-4 py-4 text-center text-slate-500">{item.unit}</td>
-                    <td className="px-4 py-4 text-center font-bold text-slate-800">{item.originalStock}</td>
+                    <td className="px-4 py-4 text-center font-bold">
+                      {item.minStock > 0 && item.originalStock <= item.minStock ? (
+                        <span className="text-rose-600 font-extrabold flex items-center justify-center gap-1 w-fit mx-auto" title="Dưới định mức tồn tối thiểu!">
+                          <span>{item.originalStock}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 font-bold">⚠️ Thấp</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-800">{item.originalStock}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-4 text-center font-bold text-[#0066b2]">{item.inCirculation}</td>
                     <td className="px-4 py-4 text-center font-bold text-rose-600">{item.discarded}</td>
-                    <td className="px-4 py-4 text-center font-black text-slate-900 bg-slate-50/30">{item.totalAccumulated}</td>
+                    <td className="px-4 py-4 text-center font-black text-slate-900 bg-slate-50/30">{item.minStock}</td>
                   </tr>
                 ))}
               </tbody>
@@ -724,6 +791,70 @@ export default function AdminInventory() {
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer"
                 >
                   {submitting ? 'Đang xử lý...' : 'Xác nhận xử lý'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Configure Minimum Stock */}
+      {showMinStockModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-scale-up">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-slate-900">Cài đặt định mức tồn tối thiểu</h3>
+              <button
+                type="button"
+                onClick={() => setShowMinStockModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleMinStockSubmit} className="p-6 space-y-4">
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                * Thiết lập định mức tồn tối thiểu dự phòng cho kho gốc. Khi số lượng khả dụng ở kho gốc giảm bằng hoặc dưới định mức, hệ thống sẽ cảnh báo đỏ để tiến hành đặt hàng bổ sung.
+              </p>
+
+              <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
+                {inventory.map((item) => (
+                  <div key={item.linenTypeId} className="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
+                    <span className="text-xs text-slate-700 font-bold">
+                      {item.name} <span className="text-xxs text-slate-400 font-normal">({item.unit})</span>
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={minStockInputs[item.linenTypeId] ?? 0}
+                      onChange={(e) =>
+                        setMinStockInputs({
+                          ...minStockInputs,
+                          [item.linenTypeId]: e.target.value !== '' ? Number(e.target.value) : '',
+                        })
+                      }
+                      className="w-24 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 text-right focus:outline-none focus:border-[#0066b2]"
+                      required
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowMinStockModal(false)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-[#0066b2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  {submitting ? 'Đang xử lý...' : 'Lưu cấu hình'}
                 </button>
               </div>
             </form>

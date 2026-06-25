@@ -3,6 +3,7 @@
  */
 import { GET } from '../app/api/admin/inventory/route'
 import { POST } from '../app/api/admin/inventory/recycle/route'
+import { PUT } from '../app/api/admin/inventory/min-stock/route'
 import { prisma } from '../lib/db'
 import { signToken } from '../lib/jwt'
 import { Batch, LinenType, LinenCirculation } from '@prisma/client'
@@ -91,6 +92,12 @@ describe('Inventory & Recycling Admin APIs', () => {
       expect(dataAdmin.batches).toBeDefined()
       expect(dataAdmin.activeCirculations).toBeDefined()
 
+      // Verify minStock is included in each item
+      const testItem = dataAdmin.inventory.find((i: any) => i.linenTypeId === testLinenTypeDrap.id)
+      expect(testItem).toBeDefined()
+      expect(testItem.minStock).toBeDefined()
+      expect(typeof testItem.minStock).toBe('number')
+
       // Test with Supervisor token
       const reqSuper = createRequest('GET', supervisorToken)
       const resSuper = await GET(reqSuper)
@@ -100,6 +107,35 @@ describe('Inventory & Recycling Admin APIs', () => {
     it('should reject Laundry role with 403', async () => {
       const req = createRequest('GET', laundryToken)
       const res = await GET(req)
+      expect(res.status).toBe(403)
+    })
+  })
+
+  describe('PUT /api/admin/inventory/min-stock', () => {
+    it('should allow Admin and Supervisor to update minimum stock levels', async () => {
+      const body = [
+        { linenTypeId: testLinenTypeDrap.id, minStock: 25 }
+      ]
+      const req = createRequest('PUT', supervisorToken, body)
+      const res = await PUT(req)
+      expect(res.status).toBe(200)
+
+      const data = await res.json()
+      expect(data.success).toBe(true)
+      expect(data.count).toBe(1)
+
+      const updatedType = await prisma.linenType.findUnique({
+        where: { id: testLinenTypeDrap.id }
+      })
+      expect(updatedType?.minStock).toBe(25)
+    })
+
+    it('should reject Laundry role with 403', async () => {
+      const body = [
+        { linenTypeId: testLinenTypeDrap.id, minStock: 30 }
+      ]
+      const req = createRequest('PUT', laundryToken, body)
+      const res = await PUT(req)
       expect(res.status).toBe(403)
     })
   })

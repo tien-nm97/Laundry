@@ -33,6 +33,7 @@ export async function GET(request: Request) {
         originalStock,
         inCirculation,
         discarded,
+        minStock: lt.minStock,
         totalAccumulated: originalStock + inCirculation + discarded,
       }
     })

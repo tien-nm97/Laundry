@@ -296,10 +296,6 @@ export default function AdminInventory() {
     }
   }
 
-  // KPI Aggregates
-  const totalOriginal = inventory.reduce((sum, item) => sum + item.originalStock, 0)
-  const totalCirculation = inventory.reduce((sum, item) => sum + item.inCirculation, 0)
-  const totalDiscarded = inventory.reduce((sum, item) => sum + item.discarded, 0)
 
   // Find the oldest active circulation IDs for each linen type (for FIFO recommendation)
   const oldestCirculationIds = new Set<string>()
@@ -371,30 +367,6 @@ export default function AdminInventory() {
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 bg-blue-50 text-[#0066b2] rounded-xl flex items-center justify-center font-bold text-lg">📦</div>
-          <div>
-            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Tồn kho gốc</span>
-            <span className="text-xl font-black text-slate-800">{totalOriginal} cái</span>
-          </div>
-        </div>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-lg">🔄</div>
-          <div>
-            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Đang lưu hành</span>
-            <span className="text-xl font-black text-slate-800">{totalCirculation} cái</span>
-          </div>
-        </div>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center font-bold text-lg">🗑️</div>
-          <div>
-            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Đã báo hỏng</span>
-            <span className="text-xl font-black text-slate-800">{totalDiscarded} cái</span>
-          </div>
-        </div>
-      </div>
 
       {/* Inventory Summary Table */}
       <div className="bg-white border border-slate-200/85 rounded-2xl p-6 shadow-sm">

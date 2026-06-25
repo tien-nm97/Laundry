@@ -257,6 +257,16 @@ export default function AdminInventory() {
   const totalCirculation = inventory.reduce((sum, item) => sum + item.inCirculation, 0)
   const totalDiscarded = inventory.reduce((sum, item) => sum + item.discarded, 0)
 
+  // Find the oldest active circulation IDs for each linen type (for FIFO recommendation)
+  const oldestCirculationIds = new Set<string>()
+  const seenTypes = new Set<string>()
+  activeCirculations.forEach((c) => {
+    if (!seenTypes.has(c.linenTypeId)) {
+      seenTypes.add(c.linenTypeId)
+      oldestCirculationIds.add(c.id)
+    }
+  })
+
   const getStatusBadge = (batch: Batch) => {
     if (batch.remainingQuantity === batch.totalQuantity) {
       return (
@@ -620,11 +630,14 @@ export default function AdminInventory() {
                   required
                 >
                   <option value="">-- Chọn lô đang lưu thông --</option>
-                  {activeCirculations.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.linenType.name} - Lô: {c.batch.code} (Lưu hành: {c.activeQuantity})
-                    </option>
-                  ))}
+                  {activeCirculations.map((c) => {
+                    const isOldest = oldestCirculationIds.has(c.id)
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {c.linenType.name} - Lô: {c.batch.code} (Lưu hành: {c.activeQuantity}){isOldest ? ' - [FIFO - Khuyên dùng]' : ''}
+                      </option>
+                    )
+                  })}
                 </select>
               </div>
 

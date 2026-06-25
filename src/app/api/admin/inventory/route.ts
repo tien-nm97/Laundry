@@ -54,7 +54,21 @@ export async function GET(request: Request) {
         linenType: true,
         batch: true,
       },
-      orderBy: { createdAt: 'desc' },
+    })
+
+    // Sort in memory: Group by LinenType name, then by startUseDate ascending (FIFO)
+    activeCirculations.sort((a, b) => {
+      const nameA = a.linenType.name.toLowerCase()
+      const nameB = b.linenType.name.toLowerCase()
+      if (nameA !== nameB) {
+        return nameA.localeCompare(nameB)
+      }
+      const dateA = new Date(a.startUseDate).getTime()
+      const dateB = new Date(b.startUseDate).getTime()
+      if (dateA !== dateB) {
+        return dateA - dateB
+      }
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     })
 
     return NextResponse.json({

@@ -31,6 +31,40 @@ export async function GET(request: Request) {
       )
     }
 
+    const now = new Date()
+    const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+    const vnYear = vnTime.getUTCFullYear()
+    const vnMonth = vnTime.getUTCMonth()
+    const vnDay = vnTime.getUTCDate()
+    const vnTodayStart = new Date(Date.UTC(vnYear, vnMonth, vnDay, 0, 0, 0, 0) - 7 * 60 * 60 * 1000)
+    const vnTodayEnd = new Date(Date.UTC(vnYear, vnMonth, vnDay, 23, 59, 59, 999) - 7 * 60 * 60 * 1000)
+
+    const existingTicket = await prisma.ticket.findFirst({
+      where: {
+        wardId: ward.id,
+        createdAt: {
+          gte: vnTodayStart,
+          lte: vnTodayEnd,
+        },
+      },
+      include: {
+        items: {
+          include: {
+            linenType: true,
+          },
+        },
+      },
+    })
+
+    if (existingTicket) {
+      if (existingTicket.status !== 'PENDING') {
+        return NextResponse.json(
+          { error: 'Phiếu hôm nay đã được xử lý, không thể sửa.' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Fetch available linen types
     const linenTypes = await prisma.linenType.findMany({
       orderBy: { name: 'asc' },
@@ -49,6 +83,15 @@ export async function GET(request: Request) {
       },
       linenTypes,
       orderlies,
+      existingTicket: existingTicket ? {
+        id: existingTicket.id,
+        requesterName: existingTicket.requesterName,
+        items: existingTicket.items.map(item => ({
+          linenTypeId: item.linenTypeId,
+          quantity: item.quantity,
+          linenType: item.linenType
+        }))
+      } : null
     })
   } catch (error: any) {
     console.error('GET request validation error:', error)
@@ -120,11 +163,62 @@ export async function POST(request: Request) {
       }
     }
 
+    const now = new Date()
+    const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+    const vnYear = vnTime.getUTCFullYear()
+    const vnMonth = vnTime.getUTCMonth()
+    const vnDay = vnTime.getUTCDate()
+    const vnTodayStart = new Date(Date.UTC(vnYear, vnMonth, vnDay, 0, 0, 0, 0) - 7 * 60 * 60 * 1000)
+    const vnTodayEnd = new Date(Date.UTC(vnYear, vnMonth, vnDay, 23, 59, 59, 999) - 7 * 60 * 60 * 1000)
+
+    const existingTicket = await prisma.ticket.findFirst({
+      where: {
+        wardId: ward.id,
+        createdAt: {
+          gte: vnTodayStart,
+          lte: vnTodayEnd,
+        },
+      },
+    })
+
+    if (existingTicket) {
+      if (existingTicket.status !== 'PENDING') {
+        return NextResponse.json(
+          { error: 'Phiếu hôm nay đã được xử lý, không thể sửa.' },
+          { status: 400 }
+        )
+      }
+
+      // Update in transaction
+      const updatedTicket = await prisma.$transaction(async (tx) => {
+        const ticket = await tx.ticket.update({
+          where: { id: existingTicket.id },
+          data: {
+            requesterName: requesterName.trim(),
+            items: {
+              deleteMany: {},
+              create: items.map((item: any) => ({
+                linenTypeId: item.linenTypeId,
+                quantity: Number(item.quantity)
+              }))
+            }
+          },
+          include: {
+            items: {
+              include: {
+                linenType: true
+              }
+            }
+          }
+        })
+        return ticket
+      })
+
+      return NextResponse.json(updatedTicket, { status: 201 })
+    }
+
     // Create Ticket and TicketItems in a transaction
     const newTicket = await prisma.$transaction(async (tx) => {
-      const now = new Date()
-      // Adjust to UTC+7 (Vietnam Time)
-      const vnTime = new Date(now.getTime() + 7 * 60 * 60 * 1000)
       const vnHours = vnTime.getUTCHours()
 
       const deliveryDate = new Date(now)

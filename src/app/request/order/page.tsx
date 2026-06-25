@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 interface LinenType {
@@ -28,6 +28,113 @@ interface TicketResult {
   items: TicketItemResult[]
 }
 
+interface SearchableSelectProps {
+  value: string
+  onChange: (value: string) => void
+  options: LinenType[]
+  placeholder: string
+  required?: boolean
+}
+
+function SearchableSelect({ value, onChange, options, placeholder, required }: SearchableSelectProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedOption = options.find(opt => opt.id === value)
+
+  const [prevValue, setPrevValue] = useState(value)
+  const [searchTerm, setSearchTerm] = useState(selectedOption ? selectedOption.name : '')
+
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setSearchTerm(selectedOption ? selectedOption.name : '')
+  }
+
+  const filteredOptions = options.filter(opt => {
+    if (!searchTerm || selectedOption?.name === searchTerm) return true
+    const query = searchTerm.toLowerCase().trim()
+    const nameLower = opt.name.toLowerCase()
+
+    // Khớp ký tự đầu tiên của chuỗi hoặc ký tự đầu của từng từ (Telex)
+    if (nameLower.startsWith(query)) return true
+    const words = nameLower.split(/\s+/)
+    if (words.some(w => w.startsWith(query))) return true
+
+    return nameLower.includes(query)
+  })
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.searchable-select-container')) {
+        setIsOpen(false)
+        setSearchTerm(selectedOption ? selectedOption.name : '')
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [isOpen, selectedOption])
+
+  return (
+    <div className="relative searchable-select-container flex-1 min-w-0">
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => {
+          setSearchTerm(e.target.value)
+          setIsOpen(true)
+          if (!e.target.value) {
+            onChange('')
+          }
+        }}
+        onFocus={() => setIsOpen(true)}
+        placeholder={placeholder}
+        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-3 pr-10 text-sm text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all cursor-pointer"
+        required={required}
+      />
+      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg mt-1 divide-y divide-slate-50">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  onChange(opt.id)
+                  setSearchTerm(opt.name)
+                  setIsOpen(false)
+                }}
+                className={`w-full text-left px-4 py-3 text-sm transition-colors hover:bg-slate-50 cursor-pointer ${
+                  opt.id === value ? 'font-bold text-[#0066b2] bg-blue-50/50' : 'text-slate-700'
+                }`}
+              >
+                {opt.name}
+              </button>
+            ))
+          ) : (
+            <div className="px-4 py-3 text-sm text-slate-400 text-center">
+              Không tìm thấy loại đồ vải phù hợp
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface Orderly {
+  id_nhanvien: string
+  nhanvien: string
+  hientrang: string
+  imageUrl?: string | null
+  createdAt: string
+}
+
 function RequestOrderForm() {
   const searchParams = useSearchParams()
   const wardId = searchParams.get('wardId')
@@ -35,7 +142,7 @@ function RequestOrderForm() {
 
   const [ward, setWard] = useState<Ward | null>(null)
   const [linenTypes, setLinenTypes] = useState<LinenType[]>([])
-  const [orderlies, setOrderlies] = useState<any[]>([])
+  const [orderlies, setOrderlies] = useState<Orderly[]>([])
 
   // Requester name selection state
   const [requesterName, setRequesterName] = useState('')
@@ -51,18 +158,15 @@ function RequestOrderForm() {
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [successTicket, setSuccessTicket] = useState<TicketResult | null>(null)
+  const [hasExistingTicket, setHasExistingTicket] = useState(false)
 
-  useEffect(() => {
+  const validateAndFetch = useCallback(async () => {
     if (!wardId || !token) {
       setErrorMsg('Không tìm thấy thông tin khoa phòng. Vui lòng quét mã QR hợp lệ.')
       setLoading(false)
       return
     }
 
-    validateAndFetch()
-  }, [wardId, token])
-
-  const validateAndFetch = async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/request/order?wardId=${wardId}&token=${token}`)
@@ -72,15 +176,31 @@ function RequestOrderForm() {
         setWard(data.ward)
         setLinenTypes(data.linenTypes)
         setOrderlies(data.orderlies || [])
+        
+        if (data.existingTicket) {
+          setRequesterName(data.existingTicket.requesterName)
+          setRows(data.existingTicket.items.map((item: { linenTypeId: string; quantity: number }) => ({
+            linenTypeId: item.linenTypeId,
+            quantity: item.quantity
+          })))
+          setHasExistingTicket(true)
+        }
       } else {
         setErrorMsg(data.error || 'Mã truy cập QR không hợp lệ hoặc đã hết hạn.')
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Lỗi kết nối máy chủ. Vui lòng thử lại sau.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [wardId, token])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      validateAndFetch()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [validateAndFetch])
 
   const getAvailableLinenTypes = (currentRowId: string) => {
     const selectedIds = rows
@@ -124,10 +244,11 @@ function RequestOrderForm() {
         // Reset form
         setRequesterName('')
         setRows([{ linenTypeId: '', quantity: 1 }])
+        setHasExistingTicket(false)
       } else {
         setFormError(data.error || 'Gửi yêu cầu thất bại.')
       }
-    } catch (err) {
+    } catch {
       setFormError('Lỗi kết nối máy chủ khi gửi yêu cầu.')
     } finally {
       setSubmitting(false)
@@ -247,6 +368,15 @@ function RequestOrderForm() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          {hasExistingTicket && (
+            <div className="bg-amber-50 border border-amber-100 text-amber-800 text-xs font-semibold px-3 py-2.5 rounded-xl flex items-center gap-2 animate-fade-in">
+              <svg className="w-4 h-4 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>Khoa đã gửi yêu cầu đồ vải, bạn muốn điều chỉnh?</span>
+            </div>
+          )}
+
           {formError && (
             <div className="bg-rose-50 border border-rose-100 text-rose-600 text-xs font-semibold px-3 py-2.5 rounded-xl animate-fade-in flex items-center gap-2">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,25 +422,17 @@ function RequestOrderForm() {
                 return (
                   <div key={index} className="flex gap-2 items-center animate-fade-in">
                     <div className="flex-1 min-w-0">
-                      <select
+                      <SearchableSelect
                         value={row.linenTypeId}
-                        onChange={(e) => {
+                        onChange={(val) => {
                           const newRows = [...rows]
-                          newRows[index].linenTypeId = e.target.value
+                          newRows[index].linenTypeId = val
                           setRows(newRows)
-                          e.target.setCustomValidity('')
                         }}
-                        onInvalid={(e) => (e.target as HTMLSelectElement).setCustomValidity('Vui lòng chọn loại đồ vải.')}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all cursor-pointer"
+                        options={availableLinenTypes}
+                        placeholder="-- Chọn loại đồ vải --"
                         required
-                      >
-                        <option value="">-- Chọn loại đồ vải --</option>
-                        {availableLinenTypes.map((lt) => (
-                          <option key={lt.id} value={lt.id}>
-                            {lt.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                     <div className="w-24">
                       <input
@@ -359,7 +481,7 @@ function RequestOrderForm() {
             disabled={submitting}
             className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-blue-600/10 cursor-pointer"
           >
-            {submitting ? 'Đang gửi yêu cầu...' : 'Gửi phiếu yêu cầu'}
+            {submitting ? 'Đang gửi yêu cầu...' : hasExistingTicket ? 'Cập nhật phiếu yêu cầu' : 'Gửi phiếu yêu cầu'}
           </button>
         </form>
       </div>

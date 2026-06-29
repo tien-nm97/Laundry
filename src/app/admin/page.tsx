@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRealtimeSync } from '@/lib/useRealtimeSync'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { PERMISSION_GROUPS } from '@/lib/permissions'
 
 interface LinenType {
   id: string
@@ -35,37 +36,32 @@ interface User {
 }
 
 const AVAILABLE_PERMISSIONS = [
-  { key: 'admin:view', label: 'Xem trang Admin' },
-  { key: 'admin:linen', label: 'Quản lý Loại vải' },
+  // Nhóm 1: Quản trị Hệ thống
+  { key: 'system:all', label: 'Toàn quyền Quản trị Hệ thống' },
+  { key: 'admin:view', label: 'Xem trang Admin Dashboard' },
+  { key: 'admin:users', label: 'Quản lý Tài khoản (User)' },
+  { key: 'admin:linen', label: 'Quản lý Loại đồ vải (Linen)' },
   { key: 'admin:ward', label: 'Quản lý Khoa phòng' },
-  { key: 'admin:staff', label: 'Quản lý Hộ lý' },
-  { key: 'admin:batch', label: 'Quản lý Lô hàng' },
-  { key: 'admin:ticket', label: 'Xử lý Cấp phát' },
-  { key: 'admin:users', label: 'Quản lý Tài khoản' },
-  { key: 'laundry:view', label: 'Nghiệp vụ Nhà giặt' },
-  
-  // Quyền cho Giám sát Hộ lý (Khoa/Phòng)
-  { key: 'supervisor:ward_report', label: 'Giám sát: Báo cáo đồ vải hư hỏng' },
-  { key: 'supervisor:ward_history', label: 'Giám sát: Xem lịch sử yêu cầu khoa phòng' },
+  { key: 'admin:staff', label: 'Quản lý Hộ lý (Staff)' },
 
-  // Quyền cho Giám sát Nhà giặt
-  { key: 'supervisor:laundry_aggregate', label: 'Giám sát: Quản lý yêu cầu tập trung' },
-  { key: 'supervisor:laundry_damage', label: 'Giám sát: Tiếp nhận & Xử lý đồ hư' },
-  { key: 'supervisor:laundry_procure', label: 'Giám sát: Lên kế hoạch đặt hàng (Thu mua)' },
+  // Nhóm 2: Quản lý Kho đồ vải
+  { key: 'inventory:all', label: 'Toàn quyền Quản lý Kho' },
+  { key: 'admin:batch', label: 'Nhập lô hàng mới (Import)' },
+  { key: 'supervisor:laundry_procure', label: 'Lên kế hoạch đặt hàng (Thu mua)' },
+  { key: 'supervisor:laundry_damage', label: 'Báo hỏng & Đề xuất tái chế đồ vải' },
+  { key: 'inventory:min_stock', label: 'Sửa định mức tồn tối thiểu' },
+
+  // Nhóm 3: Giám sát & Cấp phát
+  { key: 'dispatch:all', label: 'Toàn quyền Giám sát & Cấp phát' },
+  { key: 'admin:ticket', label: 'Xử lý & Xác nhận cấp phát phiếu' },
+  { key: 'supervisor:ward_history', label: 'Xem lịch sử yêu cầu của Khoa/Phòng' },
+  { key: 'supervisor:laundry_aggregate', label: 'Quản lý yêu cầu tập trung' },
+  { key: 'superior:cleaning', label: 'Giám sát Vệ sinh: Báo cáo đồ vải hư hỏng' },
+
+  // Nhóm 4: Nghiệp vụ Nhà giặt
+  { key: 'laundry:all', label: 'Toàn quyền Nghiệp vụ Nhà giặt' },
+  { key: 'laundry:view', label: 'Truy cập giao diện Nhà giặt' },
 ]
-
-const getPermissionsForRole = (role: string) => {
-  if (role === 'ADMIN') {
-    return AVAILABLE_PERMISSIONS.filter(p => p.key.startsWith('admin:') || p.key === 'laundry:view')
-  }
-  if (role === 'SUPERVISOR') {
-    return AVAILABLE_PERMISSIONS.filter(p => p.key.startsWith('supervisor:') || p.key === 'admin:view' || p.key === 'admin:ticket')
-  }
-  if (role === 'LAUNDRY') {
-    return AVAILABLE_PERMISSIONS.filter(p => p.key === 'laundry:view')
-  }
-  return []
-}
 
 function AdminDashboardContent() {
   const router = useRouter()
@@ -128,7 +124,14 @@ function AdminDashboardContent() {
           const data = await res.json()
           setCurrentUsername(data.username || '')
           if (data.role === 'SUPERVISOR') {
-            router.push('/admin/dispatch')
+            const perms = data.permissions || []
+            if (perms.includes('supervisor:ward_history') || perms.includes('supervisor:laundry_aggregate') || perms.includes('admin:ticket') || perms.includes('dispatch:all')) {
+              router.push('/admin/dispatch')
+            } else if (perms.includes('supervisor:laundry_procure') || perms.includes('supervisor:laundry_damage') || perms.includes('admin:batch') || perms.includes('inventory:all')) {
+              router.push('/admin/inventory')
+            } else {
+              router.push('/admin/dispatch')
+            }
           }
         }
       } catch (err) {
@@ -346,20 +349,58 @@ function AdminDashboardContent() {
     }
   }
 
-  const handleToggleNewPermission = (permKey: string) => {
-    if (newPermissions.includes(permKey)) {
-      setNewPermissions(newPermissions.filter(p => p !== permKey))
+  const handleToggleNewParentPermission = (parentKey: string, childKeys: string[]) => {
+    if (newPermissions.includes(parentKey)) {
+      setNewPermissions(prev => prev.filter(p => p !== parentKey && !childKeys.includes(p)))
     } else {
-      setNewPermissions([...newPermissions, permKey])
+      setNewPermissions(prev => {
+        const added = [parentKey, ...childKeys].filter(p => !prev.includes(p))
+        return [...prev, ...added]
+      })
     }
   }
 
-  const handleToggleEditPermission = (permKey: string) => {
-    if (editUserPermissions.includes(permKey)) {
-      setEditUserPermissions(editUserPermissions.filter(p => p !== permKey))
+  const handleToggleNewChildPermission = (childKey: string, parentKey: string, allChildKeys: string[]) => {
+    let next: string[] = []
+    if (newPermissions.includes(childKey)) {
+      next = newPermissions.filter(p => p !== childKey && p !== parentKey)
     } else {
-      setEditUserPermissions([...editUserPermissions, permKey])
+      const currentCheckedChildren = newPermissions.filter(p => allChildKeys.includes(p))
+      const willBeAllChecked = (currentCheckedChildren.length + 1) === allChildKeys.length
+      if (willBeAllChecked) {
+        next = [...newPermissions, childKey, parentKey]
+      } else {
+        next = [...newPermissions, childKey]
+      }
     }
+    setNewPermissions(next)
+  }
+
+  const handleToggleEditParentPermission = (parentKey: string, childKeys: string[]) => {
+    if (editUserPermissions.includes(parentKey)) {
+      setEditUserPermissions(prev => prev.filter(p => p !== parentKey && !childKeys.includes(p)))
+    } else {
+      setEditUserPermissions(prev => {
+        const added = [parentKey, ...childKeys].filter(p => !prev.includes(p))
+        return [...prev, ...added]
+      })
+    }
+  }
+
+  const handleToggleEditChildPermission = (childKey: string, parentKey: string, allChildKeys: string[]) => {
+    let next: string[] = []
+    if (editUserPermissions.includes(childKey)) {
+      next = editUserPermissions.filter(p => p !== childKey && p !== parentKey)
+    } else {
+      const currentCheckedChildren = editUserPermissions.filter(p => allChildKeys.includes(p))
+      const willBeAllChecked = (currentCheckedChildren.length + 1) === allChildKeys.length
+      if (willBeAllChecked) {
+        next = [...editUserPermissions, childKey, parentKey]
+      } else {
+        next = [...editUserPermissions, childKey]
+      }
+    }
+    setEditUserPermissions(next)
   }
 
   const handleStartEditUser = (user: User) => {
@@ -1003,7 +1044,7 @@ function AdminDashboardContent() {
                       if (r === 'SUPERVISOR') {
                         setNewPermissions(['admin:view', 'admin:ticket'])
                       } else if (r === 'ADMIN') {
-                        setNewPermissions(['admin:view', 'admin:linen', 'admin:ward', 'admin:staff', 'admin:batch', 'admin:ticket', 'admin:users', 'laundry:view'])
+                        setNewPermissions(['system:all', 'admin:view', 'admin:users', 'admin:linen', 'admin:ward', 'admin:staff', 'inventory:all', 'admin:batch', 'supervisor:laundry_procure', 'supervisor:laundry_damage', 'inventory:min_stock', 'dispatch:all', 'admin:ticket', 'supervisor:ward_history', 'supervisor:laundry_aggregate', 'laundry:all', 'laundry:view'])
                       } else if (r === 'LAUNDRY') {
                         setNewPermissions(['laundry:view'])
                       }
@@ -1017,17 +1058,35 @@ function AdminDashboardContent() {
                 </div>
                 <div>
                   <label className="block text-xxs text-slate-500 mb-1 font-semibold">Phân quyền chi tiết</label>
-                  <div className="bg-white border border-slate-200 rounded-lg p-2.5 max-h-[140px] overflow-y-auto space-y-1.5">
-                    {getPermissionsForRole(newRole).map((p) => (
-                      <label key={p.key} className="flex items-center gap-2 text-xxs text-slate-600 font-semibold cursor-pointer hover:text-slate-800">
-                        <input
-                          type="checkbox"
-                          checked={newPermissions.includes(p.key)}
-                          onChange={() => handleToggleNewPermission(p.key)}
-                          className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-3.5 w-3.5"
-                        />
-                        {p.label}
-                      </label>
+                  <div className="bg-white border border-slate-200 rounded-lg p-3 max-h-[220px] overflow-y-auto space-y-3.5">
+                    {PERMISSION_GROUPS.map((group) => (
+                      <div key={group.key} className="space-y-1.5">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-0.5">
+                          {group.label}
+                        </div>
+                        <label className="flex items-center gap-2 text-xxs text-[#0066b2] font-extrabold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={newPermissions.includes(group.parentKey)}
+                            onChange={() => handleToggleNewParentPermission(group.parentKey, group.children.map(c => c.key))}
+                            className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-3.5 w-3.5"
+                          />
+                          {group.parentLabel}
+                        </label>
+                        <div className="pl-4 space-y-1">
+                          {group.children.map((child) => (
+                            <label key={child.key} className="flex items-center gap-2 text-[11px] text-slate-600 font-semibold cursor-pointer hover:text-slate-800">
+                              <input
+                                type="checkbox"
+                                checked={newPermissions.includes(child.key)}
+                                onChange={() => handleToggleNewChildPermission(child.key, group.parentKey, group.children.map(c => c.key))}
+                                className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-3 w-3"
+                              />
+                              {child.label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1236,23 +1295,44 @@ function AdminDashboardContent() {
             <form onSubmit={handleUpdatePermissions} className="space-y-4">
               <div>
                 <label className="block text-xxs text-slate-500 mb-2 font-semibold">Tích chọn các quyền được phép truy cập</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200/60 max-h-[240px] overflow-y-auto">
-                  {getPermissionsForRole(editingUser.role).map((p) => {
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 max-h-[240px] overflow-y-auto space-y-4">
+                  {PERMISSION_GROUPS.map((group) => {
                     const isSelf = editingUser.username === currentUsername
-                    const isUsersAdminKey = p.key === 'admin:users'
-                    const disabled = isSelf && isUsersAdminKey
-
+                    const isParentDisabled = isSelf && group.parentKey === 'system:all'
+                    
                     return (
-                      <label key={p.key} className={`flex items-center gap-2 text-xs text-slate-600 font-semibold cursor-pointer hover:text-slate-800 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={editUserPermissions.includes(p.key)}
-                          onChange={() => !disabled && handleToggleEditPermission(p.key)}
-                          disabled={disabled}
-                          className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-4 w-4"
-                        />
-                        {p.label}
-                      </label>
+                      <div key={group.key} className="space-y-1.5">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-0.5">
+                          {group.label}
+                        </div>
+                        <label className={`flex items-center gap-2 text-xs text-[#0066b2] font-extrabold cursor-pointer ${isParentDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={editUserPermissions.includes(group.parentKey)}
+                            onChange={() => !isParentDisabled && handleToggleEditParentPermission(group.parentKey, group.children.map(c => c.key))}
+                            disabled={isParentDisabled}
+                            className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-4 w-4"
+                          />
+                          {group.parentLabel}
+                        </label>
+                        <div className="pl-4 space-y-1">
+                          {group.children.map((child) => {
+                            const isChildDisabled = isSelf && child.key === 'admin:users'
+                            return (
+                              <label key={child.key} className={`flex items-center gap-2 text-xs text-slate-600 font-semibold cursor-pointer hover:text-slate-800 ${isChildDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={editUserPermissions.includes(child.key)}
+                                  onChange={() => !isChildDisabled && handleToggleEditChildPermission(child.key, group.parentKey, group.children.map(c => c.key))}
+                                  disabled={isChildDisabled}
+                                  className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-3.5 w-3.5"
+                                />
+                                {child.label}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
                     )
                   })}
                 </div>

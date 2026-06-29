@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect, Suspense } from 'react'
+import { hasPermission } from '@/lib/permissions'
 
 function AdminLayoutContent({
   children,
@@ -15,6 +16,7 @@ function AdminLayoutContent({
   const currentTab = searchParams.get('tab') || ''
   const [loggingOut, setLoggingOut] = useState(false)
   const [userRole, setUserRole] = useState('')
+  const [userPermissions, setUserPermissions] = useState<string[]>([])
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -23,6 +25,7 @@ function AdminLayoutContent({
         if (res.ok) {
           const data = await res.json()
           setUserRole(data.role || '')
+          setUserPermissions(data.permissions || [])
         }
       } catch (err) {
         console.error('Lỗi khi tải thông tin tài khoản:', err)
@@ -82,6 +85,7 @@ function AdminLayoutContent({
       name: 'Quản lý kho', 
       href: '/admin/inventory', 
       roles: ['ADMIN', 'SUPERVISOR'],
+      requiredPermissions: ['supervisor:laundry_procure', 'supervisor:laundry_damage', 'admin:batch', 'inventory:all'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -92,6 +96,7 @@ function AdminLayoutContent({
       name: 'Yêu cầu cấp phát', 
       href: '/admin/dispatch', 
       roles: ['ADMIN', 'SUPERVISOR'],
+      requiredPermissions: ['supervisor:ward_history', 'supervisor:laundry_aggregate', 'admin:ticket', 'dispatch:all'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -108,7 +113,14 @@ function AdminLayoutContent({
         </svg>
       )
     },
-  ].filter(item => !item.roles || item.roles.includes(userRole))
+  ].filter(item => {
+    if (item.roles && !item.roles.includes(userRole)) return false
+    if (userRole === 'ADMIN') return true
+    if (item.requiredPermissions) {
+      return item.requiredPermissions.some(perm => hasPermission(userPermissions, perm))
+    }
+    return true
+  })
 
   const isActive = (itemHref: string) => {
     if (itemHref.startsWith('/admin?tab=')) {

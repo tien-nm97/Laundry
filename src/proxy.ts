@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyToken } from './lib/jwt'
+import { hasPermission } from './lib/permissions'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -35,8 +36,26 @@ export async function proxy(request: NextRequest) {
       const isInventoryRoute = pathname.startsWith('/admin/inventory')
       if (payload.role === 'ADMIN') {
         // Allowed
-      } else if (payload.role === 'SUPERVISOR' && (isDispatchRoute || isInventoryRoute)) {
-        // Allowed
+      } else if (payload.role === 'SUPERVISOR') {
+        const userPerms = payload.permissions || []
+        const canAccessDispatch = isDispatchRoute && (
+          hasPermission(userPerms, 'supervisor:ward_history') ||
+          hasPermission(userPerms, 'supervisor:laundry_aggregate') ||
+          hasPermission(userPerms, 'admin:ticket') ||
+          hasPermission(userPerms, 'dispatch:all')
+        )
+        const canAccessInventory = isInventoryRoute && (
+          hasPermission(userPerms, 'supervisor:laundry_procure') ||
+          hasPermission(userPerms, 'supervisor:laundry_damage') ||
+          hasPermission(userPerms, 'admin:batch') ||
+          hasPermission(userPerms, 'inventory:all')
+        )
+        if (canAccessDispatch || canAccessInventory) {
+          // Allowed
+        } else {
+          const loginUrl = new URL('/login', request.url)
+          return NextResponse.redirect(loginUrl)
+        }
       } else {
         const loginUrl = new URL('/login', request.url)
         return NextResponse.redirect(loginUrl)

@@ -32,7 +32,14 @@ export default function LoginPage() {
         if (data.role === 'ADMIN') {
           router.push('/admin')
         } else if (data.role === 'SUPERVISOR') {
-          router.push('/admin/dispatch')
+          const perms = data.permissions || []
+          if (perms.includes('supervisor:ward_history') || perms.includes('supervisor:laundry_aggregate') || perms.includes('admin:ticket') || perms.includes('dispatch:all')) {
+            router.push('/admin/dispatch')
+          } else if (perms.includes('supervisor:laundry_procure') || perms.includes('supervisor:laundry_damage') || perms.includes('admin:batch') || perms.includes('inventory:all')) {
+            router.push('/admin/inventory')
+          } else {
+            router.push('/admin/dispatch')
+          }
         } else if (data.role === 'LAUNDRY') {
           router.push('/laundry')
         } else {

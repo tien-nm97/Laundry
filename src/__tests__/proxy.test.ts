@@ -10,12 +10,16 @@ describe('Next.js Proxy Authentication', () => {
   let adminToken: string;
   let laundryToken: string;
   let supervisorToken: string;
+  let wardSupervisorToken: string;
+  let laundrySupervisorToken: string;
 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test-secret-key-at-least-thirty-two-chars-long';
     adminToken = await signToken({ userId: '1', username: 'admin', role: 'ADMIN' });
     laundryToken = await signToken({ userId: '2', username: 'laundry', role: 'LAUNDRY' });
-    supervisorToken = await signToken({ userId: '3', username: 'supervisor', role: 'SUPERVISOR' });
+    supervisorToken = await signToken({ userId: '3', username: 'supervisor', role: 'SUPERVISOR', permissions: [] });
+    wardSupervisorToken = await signToken({ userId: '4', username: 'ward_sup', role: 'SUPERVISOR', permissions: ['supervisor:ward_history'] });
+    laundrySupervisorToken = await signToken({ userId: '5', username: 'laundry_sup', role: 'SUPERVISOR', permissions: ['supervisor:laundry_procure'] });
   });
 
   afterAll(() => {
@@ -98,24 +102,40 @@ describe('Next.js Proxy Authentication', () => {
     }
   });
 
-  it('should allow SUPERVISOR users to access /admin/dispatch', async () => {
-    const req = createMockRequest('http://localhost/admin/dispatch', supervisorToken);
+  it('should allow SUPERVISOR users with ward_history permission to access /admin/dispatch', async () => {
+    const req = createMockRequest('http://localhost/admin/dispatch', wardSupervisorToken);
     const res = await proxy(req);
     if (res) {
       expect(res.headers.get('location')).toBeNull();
     }
   });
 
-  it('should allow SUPERVISOR users to access /admin/inventory', async () => {
-    const req = createMockRequest('http://localhost/admin/inventory', supervisorToken);
+  it('should redirect SUPERVISOR users without dispatch permission trying to access /admin/dispatch to /login', async () => {
+    const req = createMockRequest('http://localhost/admin/dispatch', laundrySupervisorToken);
+    const res = await proxy(req);
+    expect(res).toBeDefined();
+    expect(res?.status).toBe(307);
+    expect(res?.headers.get('location')).toContain('/login');
+  });
+
+  it('should allow SUPERVISOR users with laundry_procure permission to access /admin/inventory', async () => {
+    const req = createMockRequest('http://localhost/admin/inventory', laundrySupervisorToken);
     const res = await proxy(req);
     if (res) {
       expect(res.headers.get('location')).toBeNull();
     }
+  });
+
+  it('should redirect SUPERVISOR users without inventory permission trying to access /admin/inventory to /login', async () => {
+    const req = createMockRequest('http://localhost/admin/inventory', wardSupervisorToken);
+    const res = await proxy(req);
+    expect(res).toBeDefined();
+    expect(res?.status).toBe(307);
+    expect(res?.headers.get('location')).toContain('/login');
   });
 
   it('should redirect SUPERVISOR users trying to access other /admin routes to /login', async () => {
-    const req = createMockRequest('http://localhost/admin', supervisorToken);
+    const req = createMockRequest('http://localhost/admin', wardSupervisorToken);
     const res = await proxy(req);
     expect(res).toBeDefined();
     expect(res?.status).toBe(307);
@@ -123,7 +143,7 @@ describe('Next.js Proxy Authentication', () => {
   });
 
   it('should redirect SUPERVISOR users trying to access /laundry to /login', async () => {
-    const req = createMockRequest('http://localhost/laundry', supervisorToken);
+    const req = createMockRequest('http://localhost/laundry', wardSupervisorToken);
     const res = await proxy(req);
     expect(res).toBeDefined();
     expect(res?.status).toBe(307);

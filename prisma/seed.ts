@@ -65,15 +65,15 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { username: 'supervisor_ward' },
+    where: { username: 'superior_cleaning' },
     update: {
-      permissions: ['admin:view', 'admin:ticket', 'supervisor:ward_report', 'supervisor:ward_history']
+      permissions: ['admin:view', 'admin:ticket', 'superior:cleaning', 'supervisor:ward_history']
     },
     create: {
-      username: 'supervisor_ward',
+      username: 'superior_cleaning',
       passwordHash,
       role: 'SUPERVISOR',
-      permissions: ['admin:view', 'admin:ticket', 'supervisor:ward_report', 'supervisor:ward_history'],
+      permissions: ['admin:view', 'admin:ticket', 'superior:cleaning', 'supervisor:ward_history'],
     },
   });
 

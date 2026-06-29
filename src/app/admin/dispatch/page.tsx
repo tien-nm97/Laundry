@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRealtimeSync } from '@/lib/useRealtimeSync'
+import { hasPermission } from '@/lib/permissions'
 
 interface LinenType {
   id: string
@@ -44,6 +45,7 @@ export default function AdminDispatch() {
   const [wardFilter, setWardFilter] = useState<string>('ALL')
 
   const [userRole, setUserRole] = useState('')
+  const [userPermissions, setUserPermissions] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<'TICKETS' | 'AGGREGATE'>('TICKETS')
   const [selectedDate, setSelectedDate] = useState<string>(formatDateStr(new Date()))
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
@@ -55,6 +57,17 @@ export default function AdminDispatch() {
         if (res.ok) {
           const data = await res.json()
           setUserRole(data.role || '')
+          const perms = data.permissions || []
+          setUserPermissions(perms)
+
+          const canAccessTickets = data.role === 'ADMIN' || hasPermission(perms, 'supervisor:ward_history') || hasPermission(perms, 'admin:ticket') || hasPermission(perms, 'dispatch:all')
+          const canAccessAggregate = data.role === 'ADMIN' || hasPermission(perms, 'supervisor:laundry_aggregate') || hasPermission(perms, 'admin:ticket') || hasPermission(perms, 'dispatch:all')
+          
+          if (!canAccessTickets && canAccessAggregate) {
+            setActiveTab('AGGREGATE')
+          } else {
+            setActiveTab('TICKETS')
+          }
         }
       } catch (err) {
         console.error('Lỗi khi tải thông tin tài khoản:', err)
@@ -291,26 +304,30 @@ export default function AdminDispatch() {
 
       {/* Tabs Switcher */}
       <div className="flex border-b border-slate-200 mb-6">
-        <button
-          onClick={() => setActiveTab('TICKETS')}
-          className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-            activeTab === 'TICKETS'
-              ? 'border-[#0066b2] text-[#0066b2]'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          📅 Phiếu theo Ngày
-        </button>
-        <button
-          onClick={() => setActiveTab('AGGREGATE')}
-          className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-            activeTab === 'AGGREGATE'
-              ? 'border-[#0066b2] text-[#0066b2]'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          📊 Tổng hợp Đồ vải hằng ngày
-        </button>
+        {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:ward_history') || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && (
+          <button
+            onClick={() => setActiveTab('TICKETS')}
+            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'TICKETS'
+                ? 'border-[#0066b2] text-[#0066b2]'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            📅 Phiếu theo Ngày
+          </button>
+        )}
+        {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:laundry_aggregate') || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && (
+          <button
+            onClick={() => setActiveTab('AGGREGATE')}
+            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'AGGREGATE'
+                ? 'border-[#0066b2] text-[#0066b2]'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            📊 Tổng hợp Đồ vải hằng ngày
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}

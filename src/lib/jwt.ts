@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose'
+import { hasPermission } from './permissions'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-key-at-least-32-characters-long'
 const secretKey = new TextEncoder().encode(JWT_SECRET)
@@ -111,7 +112,7 @@ export async function verifyPermission(request: Request, permission: string) {
     return { payload }
   }
 
-  if (!userPerms.includes(permission)) {
+  if (!hasPermission(userPerms, permission)) {
     return { error: 'Không có quyền thực hiện thao tác này', status: 403 }
   }
 

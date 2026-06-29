@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { verifyToken } from '@/lib/jwt'
+import { hasPermission } from '@/lib/permissions'
 import { NextResponse } from 'next/server'
 
 export async function PUT(request: Request) {
@@ -24,13 +25,14 @@ export async function PUT(request: Request) {
   }
 
   const userPerms = payload.permissions || []
-  const hasPermission =
+  const hasPerm =
     payload.role === 'ADMIN' ||
-    userPerms.includes('supervisor:laundry_damage') ||
-    userPerms.includes('supervisor:laundry_procure') ||
-    userPerms.includes('admin:batch')
+    hasPermission(userPerms, 'inventory:min_stock') ||
+    hasPermission(userPerms, 'supervisor:laundry_procure') ||
+    hasPermission(userPerms, 'admin:batch') ||
+    hasPermission(userPerms, 'inventory:all')
 
-  if (!hasPermission) {
+  if (!hasPerm) {
     return NextResponse.json({ error: 'Không có quyền thực hiện thao tác này' }, { status: 403 })
   }
 

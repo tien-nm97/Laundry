@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRealtimeSync } from '@/lib/useRealtimeSync'
+import { hasPermission } from '@/lib/permissions'
 
 interface LinenType {
   id: string
@@ -458,7 +459,7 @@ export default function AdminInventory() {
         </div>
         
         <div className="flex items-center gap-2">
-          {(userRole === 'ADMIN' || userPermissions.includes('supervisor:laundry_procure') || userPermissions.includes('admin:batch')) && (
+          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:laundry_procure') || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all')) && (
             <button
               onClick={() => {
                 if (linenTypes.length > 0) setSelectedLinenTypeId(linenTypes[0].id)
@@ -469,12 +470,14 @@ export default function AdminInventory() {
               ＋ Nhập lô hàng mới
             </button>
           )}
-          <button
-            onClick={() => setShowRecycleModal(true)}
-            className="px-4 py-2 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100/60 rounded-xl text-xs font-bold transition-all cursor-pointer"
-          >
-            ⚠ Báo hỏng & Tái chế
-          </button>
+          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:laundry_damage') || hasPermission(userPermissions, 'inventory:all')) && (
+            <button
+              onClick={() => setShowRecycleModal(true)}
+              className="px-4 py-2 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100/60 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              ⚠ Báo hỏng & Tái chế
+            </button>
+          )}
         </div>
       </div>
 
@@ -509,7 +512,7 @@ export default function AdminInventory() {
                   <th className="px-4 py-3 font-bold text-slate-900 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <span>Tồn tối thiểu</span>
-                      {(userRole === 'ADMIN' || userPermissions.includes('supervisor:laundry_damage') || userPermissions.includes('supervisor:laundry_procure') || userPermissions.includes('admin:batch')) && (
+                      {(userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:min_stock') || hasPermission(userPermissions, 'supervisor:laundry_procure') || hasPermission(userPermissions, 'inventory:all')) && (
                         <button
                           type="button"
                           onClick={openMinStockModal}
@@ -934,7 +937,7 @@ export default function AdminInventory() {
                       <span>Thanh lý / Hủy bỏ thông thường</span>
                     </label>
                     
-                    {isEligibleForRecycling && (userRole === 'ADMIN' || userPermissions.includes('supervisor:laundry_damage') || userPermissions.includes('admin:batch')) && (
+                    {isEligibleForRecycling && (userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:laundry_damage') || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all')) && (
                       <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
                         <input
                           type="radio"

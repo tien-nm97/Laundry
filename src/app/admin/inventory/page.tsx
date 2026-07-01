@@ -101,6 +101,13 @@ export default function AdminInventory() {
   const [selectedProposal, setSelectedProposal] = useState<RecycleProposal | null>(null)
   const [adminRecycledQty, setAdminRecycledQty] = useState<number | ''>('')
 
+  // Circulate & Transaction logs
+  const [showCirculateModal, setShowCirculateModal] = useState(false)
+  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null)
+  const [circulateQty, setCirculateQty] = useState<number | ''>('')
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [loadingTransactions, setLoadingTransactions] = useState(true)
+
   const generatedBatchCode = `BATCH-${importDate.replace(/-/g, '')}`
 
   const openMinStockModal = () => {
@@ -152,10 +159,25 @@ export default function AdminInventory() {
         setActiveCirculations(data.activeCirculations || [])
         setRecycleProposals(data.recycleProposals || [])
       }
+      await fetchTransactionsData()
     } catch (err) {
       console.error('Error fetching inventory aggregated:', err)
     } finally {
       setLoadingData(false)
+    }
+  }
+
+  const fetchTransactionsData = async () => {
+    try {
+      const res = await fetch('/api/admin/inventory/transactions')
+      if (res.ok) {
+        const data = await res.json()
+        setTransactions(data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching transactions:', err)
+    } finally {
+      setLoadingTransactions(false)
     }
   }
 
@@ -283,22 +305,26 @@ export default function AdminInventory() {
   }
 
   // Modal 2: Recycle helpers
-  const selectedCirc = activeCirculations.find(c => c.id === selectedCirculationId)
-  const isEligibleForRecycling = selectedCirc
-    ? (selectedCirc.linenType.name.toLowerCase().includes('drap') ||
-       selectedCirc.linenType.name.toLowerCase().includes('ga trải') ||
-       selectedCirc.linenType.name.toLowerCase().includes('ga giường'))
+  const selectedLinenType = linenTypes.find(t => t.id === selectedLinenTypeId)
+  const isEligibleForRecycling = selectedLinenType
+    ? (selectedLinenType.name.toLowerCase().includes('drap') ||
+       selectedLinenType.name.toLowerCase().includes('ga trải') ||
+       selectedLinenType.name.toLowerCase().includes('ga giường'))
     : false
 
   const handleRecycleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedCirculationId || !discardQty || Number(discardQty) <= 0) {
+    if (!selectedLinenTypeId || !discardQty || Number(discardQty) <= 0) {
       showFeedback('error', 'Vui lòng điền đầy đủ các trường bắt buộc')
       return
     }
 
-    if (selectedCirc && selectedCirc.activeQuantity < Number(discardQty)) {
-      showFeedback('error', `Số lượng vượt quá lượng lưu hành (${selectedCirc.activeQuantity})`)
+    const totalActive = activeCirculations
+      .filter(c => c.linenTypeId === selectedLinenTypeId)
+      .reduce((sum, c) => sum + c.activeQuantity, 0)
+
+    if (totalActive < Number(discardQty)) {
+      showFeedback('error', `Số lượng vượt quá tổng lượng lưu hành hiện tại (${totalActive})`)
       return
     }
 
@@ -310,7 +336,7 @@ export default function AdminInventory() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            linenCirculationId: selectedCirculationId,
+            linenTypeId: selectedLinenTypeId,
             quantity: Number(discardQty)
           })
         })
@@ -319,7 +345,7 @@ export default function AdminInventory() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            linenCirculationId: selectedCirculationId,
+            linenTypeId: selectedLinenTypeId,
             discardQuantity: Number(discardQty),
             action: 'DISCARD'
           })
@@ -331,13 +357,53 @@ export default function AdminInventory() {
         showFeedback('success', recycleAction === 'RECYCLE' 
           ? 'Đã gửi đề xuất tái chế đồ vải thành công, chờ Admin phê duyệt!' 
           : 'Đã báo hỏng thanh lý đồ vải thành công!')
-        setSelectedCirculationId('')
+        if (linenTypes.length > 0) setSelectedLinenTypeId(linenTypes[0].id)
         setDiscardQty('')
         setRecycledPillowQty('')
         setShowRecycleModal(false)
         fetchInventoryData()
       } else {
         showFeedback('error', data.error || 'Lỗi khi thực hiện báo hỏng/tái chế')
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCirculateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedBatch || !circulateQty || Number(circulateQty) <= 0) {
+      showFeedback('error', 'Vui lòng nhập số lượng hợp lệ')
+      return
+    }
+
+    if (Number(circulateQty) > selectedBatch.remainingQuantity) {
+      showFeedback('error', 'Số lượng vượt quá trữ lượng sạch còn lại trong lô')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/inventory/circulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batchId: selectedBatch.id,
+          quantity: Number(circulateQty)
+        })
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        showFeedback('success', 'Đã đưa đồ vải vào lưu thông sử dụng thành công!')
+        setShowCirculateModal(false)
+        setSelectedBatch(null)
+        setCirculateQty('')
+        fetchInventoryData()
+      } else {
+        showFeedback('error', data.error || 'Lỗi khi thực hiện đưa vào sử dụng')
       }
     } catch {
       showFeedback('error', 'Lỗi kết nối')
@@ -674,11 +740,13 @@ export default function AdminInventory() {
                   <th className="px-4 py-3 font-bold text-slate-500 text-center">Trữ lượng (Còn/Tổng)</th>
                   <th className="px-4 py-3 font-bold text-slate-500">Ngày nhập</th>
                   <th className="px-4 py-3 font-bold text-slate-500">Trạng thái</th>
+                  <th className="px-4 py-3 font-bold text-slate-500 text-center w-36">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {batches.map((batch) => {
                   const percentRemaining = (batch.remainingQuantity / batch.totalQuantity) * 100
+                  const canCirculate = batch.remainingQuantity > 0 && (userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all'))
                   return (
                     <tr key={batch.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-4 font-bold text-slate-700">{batch.code}</td>
@@ -706,6 +774,22 @@ export default function AdminInventory() {
                         {new Date(batch.importedAt).toLocaleDateString('vi-VN')}
                       </td>
                       <td className="px-4 py-4">{getStatusBadge(batch)}</td>
+                      <td className="px-4 py-4 text-center">
+                        {canCirculate ? (
+                          <button
+                            onClick={() => {
+                              setSelectedBatch(batch)
+                              setCirculateQty(batch.remainingQuantity)
+                              setShowCirculateModal(true)
+                            }}
+                            className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-[#0066b2] border border-blue-200 rounded-lg text-xxs font-bold transition-all cursor-pointer"
+                          >
+                            Đưa vào sử dụng
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 font-bold">-</span>
+                        )}
+                      </td>
                     </tr>
                   )
                 })}
@@ -870,17 +954,17 @@ export default function AdminInventory() {
 
             <form onSubmit={handleRecycleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-xxs text-slate-500 mb-1 font-bold">Lô đồ vải đang lưu thông</label>
+                <label className="block text-xxs text-slate-500 mb-1 font-bold">Loại đồ vải</label>
                 <select
-                  value={selectedCirculationId}
+                  value={selectedLinenTypeId}
                   onChange={(e) => {
-                    const circId = e.target.value
-                    setSelectedCirculationId(circId)
-                    const circ = activeCirculations.find(c => c.id === circId)
-                    const eligible = circ
-                      ? (circ.linenType.name.toLowerCase().includes('drap') ||
-                         circ.linenType.name.toLowerCase().includes('ga trải') ||
-                         circ.linenType.name.toLowerCase().includes('ga giường'))
+                    const typeId = e.target.value
+                    setSelectedLinenTypeId(typeId)
+                    const lt = linenTypes.find(t => t.id === typeId)
+                    const eligible = lt
+                      ? (lt.name.toLowerCase().includes('drap') ||
+                         lt.name.toLowerCase().includes('ga trải') ||
+                         lt.name.toLowerCase().includes('ga giường'))
                       : false
                     if (!eligible) {
                       setRecycleAction('DISCARD')
@@ -889,32 +973,40 @@ export default function AdminInventory() {
                   className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2]"
                   required
                 >
-                  <option value="">-- Chọn lô đang lưu thông --</option>
-                  {activeCirculations.map((c) => {
-                    const isOldest = oldestCirculationIds.has(c.id)
+                  <option value="">-- Chọn loại đồ vải --</option>
+                  {linenTypes.map((t) => {
+                    const activeQty = activeCirculations
+                      .filter(c => c.linenTypeId === t.id)
+                      .reduce((sum, c) => sum + c.activeQuantity, 0)
                     return (
-                      <option key={c.id} value={c.id}>
-                        {c.linenType.name} - Lô: {c.batch.code} (Lưu hành: {c.activeQuantity}){isOldest ? ' - [FIFO - Khuyên dùng]' : ''}
+                      <option key={t.id} value={t.id}>
+                        {t.name} (Lưu hành: {activeQty} {t.unit})
                       </option>
                     )
                   })}
                 </select>
               </div>
 
-              {selectedCirc && (
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 text-xxs text-slate-500 space-y-1">
-                  <p>• Mặt hàng: <strong className="text-slate-700">{selectedCirc.linenType.name}</strong></p>
-                  <p>• Lô gốc: <strong className="text-slate-700">{selectedCirc.batch.code}</strong></p>
-                  <p>• Đang hoạt động: <strong className="text-slate-700">{selectedCirc.activeQuantity} {selectedCirc.linenType.unit}</strong></p>
-                </div>
-              )}
+              {selectedLinenTypeId && (() => {
+                const lt = linenTypes.find(t => t.id === selectedLinenTypeId)
+                const activeQty = activeCirculations
+                  .filter(c => c.linenTypeId === selectedLinenTypeId)
+                  .reduce((sum, c) => sum + c.activeQuantity, 0)
+                return (
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 text-xxs text-slate-500 space-y-1">
+                    <p>• Mặt hàng: <strong className="text-slate-700">{lt?.name}</strong></p>
+                    <p>• Tổng lưu hành: <strong className="text-slate-700">{activeQty} {lt?.unit}</strong></p>
+                    <p className="text-amber-600 font-medium">• Hệ thống tự động trừ kho từ lô cũ nhất đến lô mới nhất (FIFO).</p>
+                  </div>
+                )
+              })()}
 
               <div>
                 <label className="block text-xxs text-slate-500 mb-1 font-bold">Số lượng báo hỏng</label>
                 <input
                   type="number"
                   min="1"
-                  max={selectedCirc ? selectedCirc.activeQuantity : undefined}
+                  max={selectedLinenTypeId ? activeCirculations.filter(c => c.linenTypeId === selectedLinenTypeId).reduce((sum, c) => sum + c.activeQuantity, 0) : undefined}
                   value={discardQty}
                   onChange={(e) => setDiscardQty(e.target.value !== '' ? Number(e.target.value) : '')}
                   className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2]"
@@ -923,7 +1015,7 @@ export default function AdminInventory() {
                 />
               </div>
 
-              {selectedCirc && (
+              {selectedLinenTypeId && (
                 <div>
                   <label className="block text-xxs text-slate-500 mb-2 font-bold">Phương thức xử lý</label>
                   <div className="flex flex-col gap-2">
@@ -1114,6 +1206,145 @@ export default function AdminInventory() {
           </div>
         </div>
       )}
+
+      {/* Modal 4: Put Batch into Use (Circulate) */}
+      {showCirculateModal && selectedBatch && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-scale-up">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-slate-900">Đưa đồ vải vào sử dụng</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCirculateModal(false)
+                  setSelectedBatch(null)
+                  setCirculateQty('')
+                }}
+                className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCirculateSubmit} className="p-6 space-y-4">
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 text-xxs text-slate-500 space-y-1">
+                <p>• Loại đồ vải: <strong className="text-slate-700">{selectedBatch.linenType?.name}</strong></p>
+                <p>• Mã lô hàng: <strong className="text-slate-700">{selectedBatch.code}</strong></p>
+                <p>• Trữ lượng sạch dự phòng: <strong className="text-slate-700">{selectedBatch.remainingQuantity} {selectedBatch.linenType?.unit}</strong></p>
+              </div>
+
+              <div>
+                <label className="block text-xxs text-slate-500 mb-1 font-bold">Số lượng đưa vào sử dụng</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={selectedBatch.remainingQuantity}
+                  value={circulateQty}
+                  onChange={(e) => setCirculateQty(e.target.value !== '' ? Number(e.target.value) : '')}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2]"
+                  placeholder="SL đưa vào sử dụng"
+                  required
+                />
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCirculateModal(false)
+                    setSelectedBatch(null)
+                    setCirculateQty('')
+                  }}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-[#0066b2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  {submitting ? 'Đang xử lý...' : 'Xác nhận cấp phát'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Transaction Logs Table */}
+      <div className="bg-white border border-slate-200/85 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#0066b2]" />
+          Nhật ký biến động kho
+        </h2>
+
+        {loadingTransactions ? (
+          <div className="text-center py-12 text-slate-400 text-xs font-semibold">Đang tải...</div>
+        ) : transactions.length === 0 ? (
+          <div className="text-center py-12 text-slate-400 text-xs font-semibold">Chưa ghi nhận biến động kho nào.</div>
+        ) : (
+          <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-[300px] overflow-y-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-4 py-3 font-bold text-slate-500">Thời gian</th>
+                  <th className="px-4 py-3 font-bold text-slate-500">Loại giao dịch</th>
+                  <th className="px-4 py-3 font-bold text-slate-500">Mặt hàng</th>
+                  <th className="px-4 py-3 font-bold text-slate-500 text-center">Số lượng</th>
+                  <th className="px-4 py-3 font-bold text-slate-500">Người thực hiện</th>
+                  <th className="px-4 py-3 font-bold text-slate-500">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {transactions.map((t: any) => {
+                  let typeLabel = t.type
+                  let typeClass = 'bg-slate-100 text-slate-600'
+                  if (t.type === 'IMPORT') {
+                    typeLabel = 'Nhập kho'
+                    typeClass = 'bg-emerald-50 text-emerald-600 border-emerald-100/30'
+                  } else if (t.type === 'CIRCULATE') {
+                    typeLabel = 'Đưa vào SD'
+                    typeClass = 'bg-blue-50 text-blue-600 border-blue-100/30'
+                  } else if (t.type === 'DISCARD') {
+                    typeLabel = 'Báo hỏng'
+                    typeClass = 'bg-rose-50 text-rose-600 border-rose-100/30'
+                  } else if (t.type === 'RECYCLE_PROPOSE') {
+                    typeLabel = 'Đề xuất tái chế'
+                    typeClass = 'bg-amber-50 text-amber-600 border-amber-100/30'
+                  } else if (t.type === 'RECYCLE_APPROVE') {
+                    typeLabel = 'Duyệt tái chế'
+                    typeClass = 'bg-teal-50 text-teal-600 border-teal-100/30'
+                  } else if (t.type === 'RECYCLE_REJECT') {
+                    typeLabel = 'Từ chối tái chế'
+                    typeClass = 'bg-red-50 text-red-600 border-red-100/30'
+                  } else if (t.type === 'MIN_STOCK_EDIT') {
+                    typeLabel = 'Đổi ĐM tối thiểu'
+                    typeClass = 'bg-violet-50 text-violet-600 border-violet-100/30'
+                  }
+
+                  return (
+                    <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        {new Date(t.createdAt).toLocaleString('vi-VN')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${typeClass}`}>
+                          {typeLabel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700">{t.linenType?.name}</td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-600">{t.quantity}</td>
+                      <td className="px-4 py-3 text-slate-600">{t.user}</td>
+                      <td className="px-4 py-3 text-slate-500">{t.details || '-'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

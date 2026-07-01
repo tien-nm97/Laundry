@@ -58,15 +58,29 @@ export async function POST(request: Request) {
     }
 
     if (action === 'REJECTED') {
-      const updatedProposal = await prisma.linenRecycleProposal.update({
-        where: { id: proposalId },
-        data: {
-          status: 'REJECTED',
-          approverName: payload.username,
-          approvedAt: new Date(),
-        }
+      const result = await prisma.$transaction(async (tx) => {
+        const updatedProposal = await tx.linenRecycleProposal.update({
+          where: { id: proposalId },
+          data: {
+            status: 'REJECTED',
+            approverName: payload.username,
+            approvedAt: new Date(),
+          }
+        })
+
+        await tx.inventoryTransaction.create({
+          data: {
+            type: 'RECYCLE_REJECT',
+            linenTypeId: proposal.circulation.linenTypeId,
+            quantity: proposal.quantity,
+            user: payload.username,
+            details: `Từ chối đề xuất tái chế ${proposal.quantity} cái của ${proposal.proposerName}.`
+          }
+        })
+
+        return updatedProposal
       })
-      return NextResponse.json({ success: true, proposal: updatedProposal })
+      return NextResponse.json({ success: true, proposal: result })
     }
 
     // Execute APPROVED transaction
@@ -142,6 +156,27 @@ export async function POST(request: Request) {
           recycledQuantity: Number(recycledQuantity),
           approverName: payload.username,
           approvedAt: new Date()
+        }
+      })
+
+      // 7. Log transactions
+      await tx.inventoryTransaction.create({
+        data: {
+          type: 'RECYCLE_APPROVE',
+          linenTypeId: proposal.circulation.linenTypeId,
+          quantity: proposal.quantity,
+          user: payload.username,
+          details: `Duyệt tái chế ${proposal.quantity} Ga giường (đề xuất bởi ${proposal.proposerName}).`
+        }
+      })
+
+      await tx.inventoryTransaction.create({
+        data: {
+          type: 'IMPORT',
+          linenTypeId: targetLinenType.id,
+          quantity: Number(recycledQuantity),
+          user: payload.username,
+          details: `Thu hồi và nhập kho sạch ${recycledQuantity} Vỏ gối từ tái chế.`
         }
       })
 

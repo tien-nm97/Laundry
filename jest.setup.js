@@ -93,6 +93,17 @@ afterAll(async () => {
         }
       })
       
+      await prisma.inventoryTransaction.deleteMany({
+        where: {
+          linenType: {
+            OR: [
+              { name: { startsWith: 'Linen Type ' } },
+              { name: { startsWith: 'TEST-DRAP-1' } }
+            ]
+          }
+        }
+      })
+
       await prisma.linenType.deleteMany({
         where: {
           name: { startsWith: 'Linen Type ' }

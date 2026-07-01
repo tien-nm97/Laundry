@@ -24,6 +24,7 @@ model LinenType {
   batches      Batch[]
   circulations LinenCirculation[]
   ticketItems  TicketItem[]
+  transactions InventoryTransaction[]
 
   @@map("Loại đồ vải")
 }
@@ -132,4 +133,25 @@ model LinenRecycleProposal {
   proposedAt         DateTime         @default(now())
   approvedAt         DateTime?
   circulation        LinenCirculation @relation(fields: [linenCirculationId], references: [id], onDelete: Cascade)
+}
+
+enum TransactionType {
+  IMPORT
+  CIRCULATE
+  DISCARD
+  RECYCLE_PROPOSE
+  RECYCLE_APPROVE
+  RECYCLE_REJECT
+  MIN_STOCK_EDIT
+}
+
+model InventoryTransaction {
+  id            String          @id @default(uuid())
+  type          TransactionType
+  linenTypeId   String
+  quantity      Int
+  user          String
+  details       String?
+  createdAt     DateTime        @default(now())
+  linenType     LinenType       @relation(fields: [linenTypeId], references: [id])
 }

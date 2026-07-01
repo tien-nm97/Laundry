@@ -91,9 +91,10 @@ export async function POST(request: Request) {
       }
 
       // Create all batches in a transaction
-      const createdBatches = await prisma.$transaction(
-        items.map((item: any) => 
-          prisma.batch.create({
+      const createdBatches = await prisma.$transaction(async (tx) => {
+        const list = []
+        for (const item of items) {
+          const b = await tx.batch.create({
             data: {
               code,
               linenTypeId: item.linenTypeId,
@@ -105,8 +106,20 @@ export async function POST(request: Request) {
               linenType: true,
             }
           })
-        )
-      )
+          list.push(b)
+
+          await tx.inventoryTransaction.create({
+            data: {
+              type: 'IMPORT',
+              linenTypeId: item.linenTypeId,
+              quantity: Number(item.totalQuantity),
+              user: payload.username || 'System',
+              details: `Nhập lô hàng mới ${code} (Số lượng: ${item.totalQuantity} cái).`
+            }
+          })
+        }
+        return list
+      })
 
       return NextResponse.json({ count: createdBatches.length, batches: createdBatches }, { status: 201 })
     }
@@ -137,17 +150,31 @@ export async function POST(request: Request) {
       )
     }
 
-    const newBatch = await prisma.batch.create({
-      data: {
-        code,
-        linenTypeId,
-        totalQuantity: Number(totalQuantity),
-        remainingQuantity: Number(totalQuantity), // Initially equal to total
-        importedAt: new Date(importedAt),
-      },
-      include: {
-        linenType: true,
-      },
+    const newBatch = await prisma.$transaction(async (tx) => {
+      const b = await tx.batch.create({
+        data: {
+          code,
+          linenTypeId,
+          totalQuantity: Number(totalQuantity),
+          remainingQuantity: Number(totalQuantity), // Initially equal to total
+          importedAt: new Date(importedAt),
+        },
+        include: {
+          linenType: true,
+        },
+      })
+
+      await tx.inventoryTransaction.create({
+        data: {
+          type: 'IMPORT',
+          linenTypeId,
+          quantity: Number(totalQuantity),
+          user: payload.username || 'System',
+          details: `Nhập lô hàng mới ${code} (Số lượng: ${totalQuantity} cái).`
+        }
+      })
+
+      return b
     })
 
     return NextResponse.json(newBatch, { status: 201 })

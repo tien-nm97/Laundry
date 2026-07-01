@@ -6,6 +6,8 @@ import { POST } from '../app/api/admin/inventory/recycle/route'
 import { PUT } from '../app/api/admin/inventory/min-stock/route'
 import { POST as proposePOST } from '../app/api/admin/inventory/recycle/propose/route'
 import { POST as approvePOST } from '../app/api/admin/inventory/recycle/approve/route'
+import { POST as circulatePOST } from '../app/api/admin/inventory/circulate/route'
+import { GET as transactionsGET } from '../app/api/admin/inventory/transactions/route'
 import { prisma } from '../lib/db'
 import { signToken } from '../lib/jwt'
 import { Batch, LinenType, LinenCirculation } from '@prisma/client'
@@ -29,6 +31,26 @@ describe('Inventory & Recycling Admin APIs', () => {
       permissions: ['admin:view', 'supervisor:laundry_damage', 'supervisor:laundry_procure']
     })
     laundryToken = await signToken({ userId: '3', username: 'laundry', role: 'LAUNDRY' })
+
+    // Clean up any stale test records from previous failed runs
+    await prisma.linenRecycleProposal.deleteMany({
+      where: { circulation: { linenType: { name: 'TEST-DRAP-1' } } }
+    })
+    await prisma.linenDiscardLog.deleteMany({
+      where: { circulation: { linenType: { name: 'TEST-DRAP-1' } } }
+    })
+    await prisma.inventoryTransaction.deleteMany({
+      where: { linenType: { name: 'TEST-DRAP-1' } }
+    })
+    await prisma.linenCirculation.deleteMany({
+      where: { linenType: { name: 'TEST-DRAP-1' } }
+    })
+    await prisma.batch.deleteMany({
+      where: { linenType: { name: 'TEST-DRAP-1' } }
+    })
+    await prisma.linenType.deleteMany({
+      where: { name: 'TEST-DRAP-1' }
+    })
 
     // Create test LinenType Drap
     testLinenTypeDrap = await prisma.linenType.create({
@@ -57,12 +79,15 @@ describe('Inventory & Recycling Admin APIs', () => {
   })
 
   afterAll(async () => {
-    // Delete logs and batches first
+    // Delete logs and transactions first
     await prisma.linenRecycleProposal.deleteMany({
       where: { circulation: { linenTypeId: testLinenTypeDrap.id } }
     })
     await prisma.linenDiscardLog.deleteMany({
       where: { circulation: { linenTypeId: testLinenTypeDrap.id } }
+    })
+    await prisma.inventoryTransaction.deleteMany({
+      where: { linenTypeId: testLinenTypeDrap.id }
     })
     await prisma.linenCirculation.deleteMany({
       where: { linenTypeId: testLinenTypeDrap.id }
@@ -275,6 +300,66 @@ describe('Inventory & Recycling Admin APIs', () => {
       expect(approveData.success).toBe(true)
       expect(approveData.proposal.status).toBe('REJECTED')
       expect(approveData.proposal.approverName).toBe('admin')
+    })
+  })
+
+  describe('New Inventory & FIFO Improvements', () => {
+    it('should allow Admin or Batch Manager to circulate a batch to active circulation', async () => {
+      const body = {
+        batchId: testBatch.id,
+        quantity: 10
+      }
+      const req = createRequest('http://localhost/api/admin/inventory/circulate', 'POST', adminToken, body)
+      const res = await circulatePOST(req)
+      expect(res.status).toBe(201)
+
+      const data = await res.json()
+      expect(data.activeQuantity).toBe(10)
+      expect(data.originalQuantity).toBe(10)
+
+      // Verify batch remaining quantity is updated
+      const updatedBatch = await prisma.batch.findUnique({
+        where: { id: testBatch.id }
+      })
+      expect(updatedBatch?.remainingQuantity).toBe(40) // 50 - 10
+    })
+
+    it('should perform direct discard automatically using FIFO when linenTypeId is passed', async () => {
+      const body = {
+        linenTypeId: testLinenTypeDrap.id,
+        discardQuantity: 5,
+        action: 'DISCARD'
+      }
+      const req = createRequest('http://localhost/api/admin/inventory/recycle', 'POST', adminToken, body)
+      const res = await POST(req)
+      expect(res.status).toBe(201)
+
+      const data = await res.json()
+      expect(data.success).toBe(true)
+    })
+
+    it('should propose recycle automatically using FIFO when linenTypeId is passed', async () => {
+      const body = {
+        linenTypeId: testLinenTypeDrap.id,
+        quantity: 5
+      }
+      const req = createRequest('http://localhost/api/admin/inventory/recycle/propose', 'POST', adminToken, body)
+      const res = await proposePOST(req)
+      expect(res.status).toBe(201)
+
+      const data = await res.json()
+      expect(data.id).toBeDefined()
+    })
+
+    it('should allow Admin to fetch transaction logs', async () => {
+      const req = createRequest('http://localhost/api/admin/inventory/transactions', 'GET', adminToken)
+      const res = await transactionsGET(req)
+      expect(res.status).toBe(200)
+
+      const data = await res.json()
+      expect(Array.isArray(data)).toBe(true)
+      expect(data.length).toBeGreaterThan(0)
+      expect(data[0].type).toBeDefined()
     })
   })
 })

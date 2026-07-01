@@ -15,6 +15,30 @@ describe('Admin API Endpoints', () => {
     process.env.JWT_SECRET = 'test-secret-key-at-least-thirty-two-chars-long'
     adminToken = await signToken({ userId: '1', username: 'admin', role: 'ADMIN' })
     laundryToken = await signToken({ userId: '2', username: 'laundry', role: 'LAUNDRY' })
+
+    // Pre-test cleanup of any stale records from past crashes
+    await prisma.inventoryTransaction.deleteMany({
+      where: {
+        linenType: {
+          name: { startsWith: 'Linen Type ' }
+        }
+      }
+    })
+    await prisma.batch.deleteMany({
+      where: {
+        code: { startsWith: 'TEST-BATCH-' }
+      }
+    })
+    await prisma.ward.deleteMany({
+      where: {
+        name: { startsWith: 'Ward ' }
+      }
+    })
+    await prisma.linenType.deleteMany({
+      where: {
+        name: { startsWith: 'Linen Type ' }
+      }
+    })
   })
 
   afterAll(async () => {
@@ -29,6 +53,15 @@ describe('Admin API Endpoints', () => {
     await prisma.ward.deleteMany({
       where: {
         name: { startsWith: 'Ward ' }
+      }
+    })
+
+    // Clean up test inventory transactions
+    await prisma.inventoryTransaction.deleteMany({
+      where: {
+        linenType: {
+          name: { startsWith: 'Linen Type ' }
+        }
       }
     })
 

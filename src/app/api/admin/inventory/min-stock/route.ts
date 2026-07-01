@@ -43,14 +43,32 @@ export async function PUT(request: Request) {
     }
 
     // Execute bulk updates in a transaction
-    const results = await prisma.$transaction(
-      body.map((item) =>
-        prisma.linenType.update({
+    const results = await prisma.$transaction(async (tx) => {
+      const updates = []
+      for (const item of body) {
+        const oldType = await tx.linenType.findUnique({
+          where: { id: item.linenTypeId }
+        })
+        const oldMinStock = oldType?.minStock || 0
+
+        const updated = await tx.linenType.update({
           where: { id: item.linenTypeId },
           data: { minStock: Number(item.minStock) },
         })
-      )
-    )
+        updates.push(updated)
+
+        await tx.inventoryTransaction.create({
+          data: {
+            type: 'MIN_STOCK_EDIT',
+            linenTypeId: item.linenTypeId,
+            quantity: Number(item.minStock),
+            user: payload.username || 'System',
+            details: `Thay đổi định mức tồn tối thiểu từ ${oldMinStock} sang ${item.minStock} cái.`
+          }
+        })
+      }
+      return updates
+    })
 
     return NextResponse.json({ success: true, count: results.length }, { status: 200 })
   } catch (error: unknown) {

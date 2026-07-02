@@ -44,7 +44,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     parentLabel: 'Toàn quyền Quản lý Kho',
     children: [
       { key: 'inventory:view', label: 'Xem số liệu tồn kho & biến động' },
-      { key: 'inventory:manage', label: 'Can thiệp Kho (Nhập/Đưa vào SD/Báo hỏng/Tái chế)' },
+      { key: 'inventory:import', label: 'Nhập lô hàng mới' },
+      { key: 'inventory:circulate', label: 'Đưa đồ vải sạch vào sử dụng' },
+      { key: 'inventory:discard', label: 'Báo hỏng đồ vải / đề xuất tái chế' },
+      { key: 'inventory:min_stock', label: 'Sửa định mức tồn tối thiểu' },
     ]
   },
   {
@@ -87,17 +90,6 @@ export function hasPermission(userPerms: string[], requiredPerm: string): boolea
   if (userPerms.includes('admin:linen') && (requiredPerm === 'linen:view' || requiredPerm === 'linen:manage')) return true
   if (userPerms.includes('admin:ward') && (requiredPerm === 'ward:view' || requiredPerm === 'ward:manage')) return true
   if (userPerms.includes('admin:staff') && (requiredPerm === 'staff:view' || requiredPerm === 'staff:manage')) return true
-  
-  if (requiredPerm === 'inventory:manage') {
-    if (userPerms.includes('admin:batch') || 
-        userPerms.includes('supervisor:laundry_damage') || 
-        userPerms.includes('inventory:min_stock') || 
-        userPerms.includes('supervisor:laundry_procure')) return true
-  }
-  if (requiredPerm === 'inventory:view') {
-    if (userPerms.includes('inventory:all') || 
-        userPerms.includes('inventory:view_stock')) return true
-  }
   if (requiredPerm === 'dispatch:manage') {
     if (userPerms.includes('admin:ticket') || userPerms.includes('superior:cleaning')) return true
   }

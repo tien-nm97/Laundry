@@ -85,7 +85,7 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json()
-    const { id, role, permissions, password } = body
+    const { id, username, role, permissions, password } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Thiếu ID người dùng' }, { status: 400 })
@@ -102,6 +102,23 @@ export async function PUT(request: Request) {
     }
 
     const updateData: any = {}
+    if (username) {
+      const trimmedUsername = username.trim()
+      if (!trimmedUsername) {
+        return NextResponse.json({ error: 'Tên đăng nhập không được để trống' }, { status: 400 })
+      }
+      
+      const existing = await prisma.user.findFirst({
+        where: {
+          username: trimmedUsername,
+          NOT: { id }
+        }
+      })
+      if (existing) {
+        return NextResponse.json({ error: 'Tên đăng nhập đã tồn tại' }, { status: 400 })
+      }
+      updateData.username = trimmedUsername
+    }
     if (role) updateData.role = role
     if (permissions) updateData.permissions = permissions
     if (password) {

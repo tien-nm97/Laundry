@@ -80,6 +80,7 @@ function AdminDashboardContent() {
 
   // Editing user states
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editUsername, setEditUsername] = useState('')
   const [editUserRole, setEditUserRole] = useState('LAUNDRY')
   const [editUserPassword, setEditUserPassword] = useState('')
   const [editUserPermissions, setEditUserPermissions] = useState<string[]>([])
@@ -261,6 +262,11 @@ function AdminDashboardContent() {
     e.preventDefault()
     if (!editingUser) return
 
+    if (!editUsername.trim()) {
+      showFeedback('error', 'Tên đăng nhập không được để trống')
+      return
+    }
+
     if (editUserPassword.trim() && editUserPassword.trim().length < 6) {
       showFeedback('error', 'Mật khẩu mới phải tối thiểu 6 ký tự')
       return
@@ -270,6 +276,7 @@ function AdminDashboardContent() {
     try {
       const payload: any = {
         id: editingUser.id,
+        username: editUsername.trim(),
         role: editUserRole,
         permissions: editUserPermissions,
       }
@@ -288,6 +295,17 @@ function AdminDashboardContent() {
         setEditingUser(null)
         setEditUserPassword('')
         showFeedback('success', `Đã cập nhật thông tin tài khoản: ${data.username}`)
+        if (editingUser.username === currentUsername) {
+          setCurrentUsername(data.username)
+          try {
+            const localUser = localStorage.getItem('user')
+            if (localUser) {
+              const parsed = JSON.parse(localUser)
+              parsed.username = data.username
+              localStorage.setItem('user', JSON.stringify(parsed))
+            }
+          } catch (err) {}
+        }
         fetchUsers()
       } else {
         showFeedback('error', data.error || 'Lỗi khi cập nhật tài khoản')
@@ -379,6 +397,7 @@ function AdminDashboardContent() {
 
   const handleStartEditUser = (user: User) => {
     setEditingUser(user)
+    setEditUsername(user.username)
     setEditUserRole(user.role)
     setEditUserPassword('')
     setEditUserPermissions(user.permissions || [])
@@ -941,12 +960,14 @@ function AdminDashboardContent() {
 
                         return (
                           <tr key={o.id_nhanvien} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-3 text-center flex justify-center">
-                              {o.imageUrl ? (
-                                <img src={o.imageUrl} alt={o.nhanvien} className="w-10 h-10 rounded-full object-cover border border-slate-200/80 shadow-sm" />
-                              ) : (
-                                <div className={placeholderClass}>{initials}</div>
-                              )}
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex justify-center">
+                                {o.imageUrl ? (
+                                  <img src={o.imageUrl} alt={o.nhanvien} className="w-10 h-10 rounded-full object-cover border border-slate-200/80 shadow-sm" />
+                                ) : (
+                                  <div className={placeholderClass}>{initials}</div>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-3 font-semibold text-slate-700">{o.nhanvien}</td>
                             <td className="px-4 py-3 text-center">
@@ -1134,19 +1155,12 @@ function AdminDashboardContent() {
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-center flex justify-center gap-2 h-full items-center">
+                            <td className="px-4 py-3 text-center">
                               <button
                                 onClick={() => handleStartEditUser(u)}
                                 className="text-[#0066b2] hover:text-blue-700 font-bold transition-colors cursor-pointer text-xs"
                               >
                                 Chỉnh sửa
-                              </button>
-                              <button
-                                onClick={() => handleDeleteUser(u.id, u.username)}
-                                disabled={isSelf}
-                                className={`font-bold transition-colors text-xs ${isSelf ? 'text-slate-300 cursor-not-allowed' : 'text-rose-500 hover:text-rose-700 cursor-pointer'}`}
-                              >
-                                Xóa
                               </button>
                             </td>
                           </tr>
@@ -1240,8 +1254,6 @@ function AdminDashboardContent() {
         </div>
       )}
 
-      {/* Edit User Permissions Modal */}
-      {editingUser && (
       {/* Edit User Modal */}
       {editingUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -1264,9 +1276,9 @@ function AdminDashboardContent() {
                 <label className="block text-xxs text-slate-500 mb-1.5 font-semibold uppercase tracking-wider">Tên đăng nhập</label>
                 <input
                   type="text"
-                  value={editingUser.username}
-                  disabled
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-500 font-semibold cursor-not-allowed"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all font-semibold"
                 />
               </div>
 
@@ -1349,20 +1361,40 @@ function AdminDashboardContent() {
                 </div>
               </div>
 
-              <div className="pt-2 flex gap-2">
+              <div className="pt-4 border-t border-slate-100 space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingUserEdit}
+                    className="flex-1 bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
+                  >
+                    {submittingUserEdit ? 'Đang lưu...' : 'Lưu tài khoản'}
+                  </button>
+                </div>
+                
                 <button
                   type="button"
-                  onClick={() => setEditingUser(null)}
-                  className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
+                  onClick={() => {
+                    if (editingUser) {
+                      setEditingUser(null)
+                      handleDeleteUser(editingUser.id, editingUser.username)
+                    }
+                  }}
+                  disabled={editingUser?.username === currentUsername}
+                  className={`w-full border font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center mt-2 ${
+                    editingUser?.username === currentUsername
+                      ? 'border-slate-200 text-slate-300 cursor-not-allowed'
+                      : 'border-rose-200 hover:bg-rose-50 text-rose-600'
+                  }`}
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingUserEdit}
-                  className="flex-1 bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
-                >
-                  {submittingUserEdit ? 'Đang lưu...' : 'Lưu tài khoản'}
+                  Xóa tài khoản
                 </button>
               </div>
             </form>

@@ -105,6 +105,44 @@ describe('Users Administration API', () => {
     expect(updated.permissions).toContain('admin:view')
   })
 
+  it('should allow admin to update user username', async () => {
+    const body = {
+      id: testUser.id,
+      username: 'updatedtestuser'
+    }
+    const req = createRequest('PUT', body, adminToken)
+    const res = await PUT(req)
+    expect(res.status).toBe(200)
+    const updated = await res.json()
+    expect(updated.username).toBe('updatedtestuser')
+    testUser.username = 'updatedtestuser' // Cập nhật tên cục bộ để clean up đúng ở afterAll
+  })
+
+  it('should reject updating username to an already existing username', async () => {
+    const bodyCreate = {
+      username: 'anotheruser',
+      password: 'password123',
+      role: 'LAUNDRY'
+    }
+    const reqCreate = createRequest('POST', bodyCreate, adminToken)
+    const resCreate = await POST(reqCreate)
+    expect(resCreate.status).toBe(201)
+    const anotherUser = await resCreate.json()
+
+    const bodyUpdate = {
+      id: testUser.id,
+      username: 'anotheruser'
+    }
+    const reqUpdate = createRequest('PUT', bodyUpdate, adminToken)
+    const resUpdate = await PUT(reqUpdate)
+    expect(resUpdate.status).toBe(400)
+    const errData = await resUpdate.json()
+    expect(errData.error).toBe('Tên đăng nhập đã tồn tại')
+
+    const reqDel = createRequest('DELETE', undefined, adminToken, `id=${anotherUser.id}`)
+    await DELETE(reqDel)
+  })
+
   it('should reject admin self-demotion of admin:users permission', async () => {
     const body = {
       id: 'admin-id-123',

@@ -248,9 +248,20 @@ export default function AdminDispatch() {
   // Today's Date representation
   const todayDateStr = formatDateStr(new Date())
 
-  // Tickets created today
+  // Tickets for today's supervisor view:
+  // - Show active tickets (PENDING or PREPARED) created within the last 24 hours (matching the laundry worker view).
+  // - Show DELIVERED tickets whose delivery date is today.
   const todayTickets = useMemo(() => {
-    return tickets.filter(t => formatDateStr(new Date(t.createdAt)) === todayDateStr)
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    return tickets.filter(t => {
+      if (t.status === 'PENDING' || t.status === 'PREPARED') {
+        return new Date(t.createdAt) >= cutoff
+      }
+      if (t.status === 'DELIVERED') {
+        return t.deliveryDate ? formatDateStr(new Date(t.deliveryDate)) === todayDateStr : false
+      }
+      return false
+    })
   }, [tickets, todayDateStr])
 
   // Overall today's fulfillment progress percentage

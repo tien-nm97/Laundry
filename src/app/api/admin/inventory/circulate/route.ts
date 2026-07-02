@@ -3,8 +3,8 @@ import { verifyPermission } from '@/lib/jwt'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  // Verify permissions: inventory:manage
-  const auth = await verifyPermission(request, 'inventory:manage')
+  // Verify permissions: inventory:circulate
+  const auth = await verifyPermission(request, 'inventory:circulate')
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }

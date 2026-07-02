@@ -34,33 +34,40 @@ beforeEach(() => {
         ]),
       } as Response)
     }
+    if (url.includes('/api/admin/orderlies')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      } as Response)
+    }
+    if (url.includes('/api/admin/inventory')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ batches: [] }),
+      } as Response)
+    }
     return Promise.resolve({ ok: false } as Response)
   }) as jest.Mock
 })
 
-describe('Admin Dispatch Tabs UI Page', () => {
-  it('renders the tabs and shows calendar and tickets list in default tab', async () => {
+describe('Admin Dispatch Monitor UI Page', () => {
+  it('renders the supervisor dashboard and can expand ticket details', async () => {
     render(<AdminDispatch />)
     
-    // Wait for tickets loading
-    expect(await screen.findByText(/📊 Giám sát hôm nay/i)).toBeInTheDocument()
-    expect(screen.getByText(/📈 Tổng hợp số lượng/i)).toBeInTheDocument()
+    // Wait for tickets loading and header rendering
+    expect(await screen.findByText(/Tiến độ cấp phát hôm nay/i)).toBeInTheDocument()
+    expect(screen.getByText(/Theo dõi trạng thái các Khoa phòng hôm nay/i)).toBeInTheDocument()
     
-    // Wait for tickets data to load
+    // Verify ward name is present
     expect((await screen.findAllByText(/Ngoai Tong Hop/i)).length).toBeGreaterThan(0)
-  })
-
-  it('switches to aggregated tab and calculates quantities correctly', async () => {
-    render(<AdminDispatch />)
     
-    // Wait for component to load tickets
-    const tabButton = await screen.findByText(/📈 Tổng hợp số lượng/i)
-    fireEvent.click(tabButton)
-
-    // Verification of Tab 2
-    expect(screen.getByText(/Tổng hợp số lượng yêu cầu đồ vải hằng ngày/i)).toBeInTheDocument()
-    expect(screen.getByText(/Mền xanh:/i)).toBeInTheDocument()
-    expect(screen.getByText(/10/i)).toBeInTheDocument()
-    expect(screen.getByText(/Chỉ số So sánh Tương quan/i)).toBeInTheDocument()
+    // Toggle expand button
+    const expandBtn = screen.getByRole('button', { name: /Xem chi tiết ❯/i })
+    fireEvent.click(expandBtn)
+    
+    // Check that inside expanded panel we see items details
+    expect(await screen.findByText(/Đồ vải yêu cầu cấp phát:/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Mền xanh/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/10 Cái/i).length).toBeGreaterThan(0)
   })
 })

@@ -60,6 +60,9 @@ export default function AdminDispatch() {
   const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Tabs: MONITOR (Giám sát cấp phát) vs SHORTAGES (Cảnh báo thiếu hụt)
+  const [activeTab, setActiveTab] = useState<'MONITOR' | 'SHORTAGES'>('MONITOR')
+
   // Filters
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'PREPARED' | 'DELIVERED' | 'INCOMPLETE'>('ALL')
   const [wardFilter, setWardFilter] = useState<string>('ALL')
@@ -217,13 +220,6 @@ export default function AdminDispatch() {
     }))
   }
 
-  // Calculate stats
-  const totalCount = tickets.length
-  const pendingCount = tickets.filter(t => t.status === 'PENDING').length
-  const preparedCount = tickets.filter(t => t.status === 'PREPARED').length
-  const deliveredCount = tickets.filter(t => t.status === 'DELIVERED').length
-  const incompleteCount = tickets.filter(t => t.status === 'INCOMPLETE').length
-
   // Unique wards list for filtering
   const wards = useMemo(() => {
     const list = Array.from(new Set(tickets.map(t => JSON.stringify(t.ward))))
@@ -338,28 +334,33 @@ export default function AdminDispatch() {
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-slate-400 text-xxs font-bold uppercase tracking-wider">Tổng số yêu cầu</span>
-          <span className="text-2xl font-extrabold text-slate-900 mt-2">{totalCount}</span>
-        </div>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-indigo-600 text-xxs font-bold uppercase tracking-wider">Chờ chuẩn bị</span>
-          <span className="text-2xl font-extrabold text-indigo-600 mt-2">{pendingCount}</span>
-        </div>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-amber-600 text-xxs font-bold uppercase tracking-wider">Sẵn sàng giao</span>
-          <span className="text-2xl font-extrabold text-amber-600 mt-2">{preparedCount}</span>
-        </div>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-emerald-600 text-xxs font-bold uppercase tracking-wider">Đã bàn giao</span>
-          <span className="text-2xl font-extrabold text-emerald-600 mt-2">{deliveredCount}</span>
-        </div>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-rose-600 text-xxs font-bold uppercase tracking-wider">Chưa thực hiện</span>
-          <span className="text-2xl font-extrabold text-rose-600 mt-2">{incompleteCount}</span>
-        </div>
+      {/* Tabs Switcher */}
+      <div className="flex border-b border-slate-200 mb-6">
+        <button
+          onClick={() => setActiveTab('MONITOR')}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+            activeTab === 'MONITOR'
+              ? 'border-[#0066b2] text-[#0066b2]'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          📊 Giám sát cấp phát
+        </button>
+        <button
+          onClick={() => setActiveTab('SHORTAGES')}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'SHORTAGES'
+              ? 'border-[#0066b2] text-[#0066b2]'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          ⚠️ Cảnh báo thiếu hụt
+          {stockShortages.length > 0 && (
+            <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full leading-none">
+              {stockShortages.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {loading ? (
@@ -369,225 +370,251 @@ export default function AdminDispatch() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Fulfillment Progress Header Bar */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-              <span className="flex items-center gap-1.5">📈 Tiến độ cấp phát hôm nay ({new Date().toLocaleDateString('vi-VN')})</span>
-              <span className="text-[#0066b2] font-black">{todayDelivered}/{todayTotal} Khoa phòng ({progressPercent}%)</span>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200/60">
-              <div
-                className="bg-gradient-to-r from-blue-500 to-[#0066b2] h-full rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
+          {/* TAB 1: TODAY SUPERVISOR MONITOR */}
+          {activeTab === 'MONITOR' && (
+            <div className="space-y-6">
+              {/* Fulfillment Progress Header Bar */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
+                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                  <span className="flex items-center gap-1.5">📈 Tiến độ cấp phát hôm nay ({new Date().toLocaleDateString('vi-VN')})</span>
+                  <span className="text-[#0066b2] font-black">{todayDelivered}/{todayTotal} Khoa phòng ({progressPercent}%)</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200/60">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-[#0066b2] h-full rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
 
-          {/* Cảnh báo thiếu hụt kho sạch */}
-          {stockShortages.length > 0 && (
-            <div className="space-y-2">
-              {stockShortages.map((s) => (
-                <div key={s.linenTypeId} className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-pulse">
-                  <div className="flex items-start gap-2.5">
-                    <span className="text-base">⚠️</span>
-                    <div>
-                      <p className="font-bold text-amber-950">Cảnh báo thiếu hụt: {s.name}</p>
-                      <p className="text-amber-800 text-[11px] mt-0.5">
-                        Yêu cầu hôm nay là <strong>{s.reqQty} {s.unit}</strong>, nhưng tồn kho sạch dự phòng chỉ còn <strong>{s.stockQty} {s.unit}</strong> (Thiếu <strong>{s.shortageQty}</strong>).
-                      </p>
+              {/* Filters & Actions Panel */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                    Theo dõi trạng thái các Khoa phòng hôm nay
+                  </h2>
+
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <select
+                      value={wardFilter}
+                      onChange={(e) => setWardFilter(e.target.value)}
+                      className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xxs font-bold text-slate-600 focus:outline-none focus:border-[#0066b2]"
+                    >
+                      <option value="ALL">Tất cả khoa phòng</option>
+                      {wards.map(w => (
+                        <option key={w.id} value={w.id}>{w.name}</option>
+                      ))}
+                    </select>
+
+                    <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/50">
+                      {['ALL', 'PENDING', 'PREPARED', 'DELIVERED'].map((st) => (
+                        <button
+                          key={st}
+                          onClick={() => setStatusFilter(st as any)}
+                          className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
+                            statusFilter === st
+                              ? 'bg-white text-[#0066b2] shadow-sm'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          {st === 'ALL' ? 'Tất cả' : st === 'PENDING' ? 'Chờ soạn' : st === 'PREPARED' ? 'Sẵn sàng' : 'Đã giao'}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  {(userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all')) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCirculateLinenTypeId(s.linenTypeId)
-                        setSelectedLinenTypeName(s.name)
-                        setCirculateQty(s.shortageQty)
-                        setSelectedBatchId('')
-                        setShowCirculateModal(true)
-                      }}
-                      className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-xxs transition-all cursor-pointer whitespace-nowrap animate-bounce"
-                    >
-                      Cấp phát nhanh từ kho sạch
-                    </button>
-                  )}
                 </div>
-              ))}
+
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                  <span className="text-slate-400 text-xs">🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Tìm nhanh theo tên khoa phòng, hộ lý yêu cầu..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full text-xs text-slate-800 bg-transparent focus:outline-none placeholder-slate-400"
+                  />
+                </div>
+
+                {/* Minimalist Wards Table with Accordions */}
+                {filteredTodayTickets.length === 0 ? (
+                  <p className="text-center py-10 text-slate-400 text-xs font-semibold">Không có yêu cầu cấp phát nào khớp bộ lọc.</p>
+                ) : (
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-4 py-3 font-bold text-slate-500 w-12 text-center">STT</th>
+                          <th className="px-4 py-3 font-bold text-slate-500">Khoa phòng bệnh viện</th>
+                          <th className="px-4 py-3 font-bold text-slate-500">Hộ lý yêu cầu</th>
+                          <th className="px-4 py-3 font-bold text-slate-500">Thời gian tạo</th>
+                          <th className="px-4 py-3 font-bold text-slate-500 text-center w-32">Trạng thái</th>
+                          <th className="px-4 py-3 font-bold text-slate-500 text-center w-28">Đồ vải</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {filteredTodayTickets.map((t, index) => {
+                          const isExpanded = !!expandedTickets[t.id]
+                          return (
+                            <Fragment key={t.id}>
+                              <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-4 py-4 text-center text-slate-400 font-bold">{index + 1}</td>
+                                <td className="px-4 py-4 text-slate-700 font-bold">{t.ward.name}</td>
+                                <td className="px-4 py-4 text-slate-600 font-medium">{t.requesterName}</td>
+                                <td className="px-4 py-4 text-slate-400 font-medium">
+                                  {new Date(t.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                </td>
+                                <td className="px-4 py-4 text-center">
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                    t.status === 'DELIVERED'
+                                      ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                                      : t.status === 'PENDING'
+                                      ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                                      : t.status === 'PREPARED'
+                                      ? 'bg-amber-50 border-amber-100 text-amber-600'
+                                      : 'bg-rose-50 border-rose-100 text-rose-600'
+                                  }`}>
+                                    {t.status === 'DELIVERED'
+                                      ? 'Đã bàn giao'
+                                      : t.status === 'PENDING'
+                                      ? 'Chờ chuẩn bị'
+                                      : t.status === 'PREPARED'
+                                      ? 'Sẵn sàng giao'
+                                      : 'Chưa thực hiện'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-4 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleExpandTicket(t.id)}
+                                    className="px-2.5 py-1 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-bold text-xxs rounded-lg cursor-pointer transition-all"
+                                  >
+                                    {isExpanded ? 'Ẩn ❮' : 'Xem chi tiết ❯'}
+                                  </button>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr className="bg-slate-50/50">
+                                  <td colSpan={6} className="px-6 py-4 border-b border-slate-100">
+                                    <div className="max-w-xl bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                                      <h4 className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Đồ vải yêu cầu cấp phát:</h4>
+                                      <div className="divide-y divide-slate-100">
+                                        {t.items.map(item => (
+                                          <div key={item.id} className="flex justify-between py-2 text-xs">
+                                            <span className="text-slate-600 font-semibold">{item.linenType.name}</span>
+                                            <span className="text-slate-800 font-extrabold">{item.quantity} {item.linenType.unit}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      {/* Emergency Override Option */}
+                                      {(userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && t.status !== 'DELIVERED' && (
+                                        <div className="border-t border-slate-100 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50 p-2.5 rounded-lg border border-dashed border-slate-200">
+                                          <div>
+                                            <p className="text-[10px] font-bold text-slate-800">Cập nhật nhanh khẩn cấp (Dành cho Quản trị viên)</p>
+                                            <p className="text-[9px] text-slate-400">Cho phép giám sát duyệt thay đổi trạng thái nếu xưởng gặp sự cố.</p>
+                                          </div>
+                                          <div className="flex gap-2">
+                                            {t.status === 'PREPARED' && (
+                                              <select
+                                                id={`admin-orderly-select-${t.id}`}
+                                                className="bg-white border border-slate-200 rounded px-2 py-1 text-xxs font-bold text-slate-600 focus:outline-none"
+                                              >
+                                                <option value="">Chọn hộ lý giao</option>
+                                                {staff.map(s => (
+                                                  <option key={s.id_nhanvien} value={s.nhanvien}>{s.nhanvien}</option>
+                                                ))}
+                                              </select>
+                                            )}
+                                            <button
+                                              onClick={() => {
+                                                if (t.status === 'PREPARED') {
+                                                  const sel = document.getElementById(`admin-orderly-select-${t.id}`) as HTMLSelectElement
+                                                  const val = sel?.value || 'Hộ lý'
+                                                  handleUpdateStatus(t.id).then(() => {
+                                                    showFeedback('success', `Đã cập nhật trạng thái & bàn giao cho hộ lý ${val}!`)
+                                                  })
+                                                } else {
+                                                  handleUpdateStatus(t.id)
+                                                }
+                                              }}
+                                              disabled={submitting}
+                                              className="bg-[#0066b2] hover:bg-blue-700 text-white font-extrabold text-xxs px-3 py-1 rounded cursor-pointer"
+                                            >
+                                              {t.status === 'PENDING' ? '✓ Xác nhận soạn xong' : '🚚 Xác nhận bàn giao'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Filters & Actions Panel */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          {/* TAB 2: STOCK SHORTAGES LIST */}
+          {activeTab === 'SHORTAGES' && (
+            <div className="space-y-6 animate-fade-in">
               <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                Theo dõi trạng thái các Khoa phòng hôm nay
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                Danh sách Cảnh báo Thiếu hụt đồ vải hôm nay
               </h2>
 
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <select
-                  value={wardFilter}
-                  onChange={(e) => setWardFilter(e.target.value)}
-                  className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xxs font-bold text-slate-600 focus:outline-none focus:border-[#0066b2]"
-                >
-                  <option value="ALL">Tất cả khoa phòng</option>
-                  {wards.map(w => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </select>
-
-                <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/50">
-                  {['ALL', 'PENDING', 'PREPARED', 'DELIVERED'].map((st) => (
-                    <button
-                      key={st}
-                      onClick={() => setStatusFilter(st as any)}
-                      className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
-                        statusFilter === st
-                          ? 'bg-white text-[#0066b2] shadow-sm'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      {st === 'ALL' ? 'Tất cả' : st === 'PENDING' ? 'Chờ soạn' : st === 'PREPARED' ? 'Sẵn sàng' : 'Đã giao'}
-                    </button>
+              {stockShortages.length === 0 ? (
+                <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-8 text-center space-y-3">
+                  <span className="text-4xl">✅</span>
+                  <h3 className="text-sm font-extrabold text-emerald-950">Đầy đủ tồn kho sạch dự phòng!</h3>
+                  <p className="text-xs text-emerald-800 max-w-md mx-auto leading-relaxed">
+                    Tất cả các loại đồ vải sạch đều đáp ứng trữ lượng dự phòng đầy đủ cho nhu cầu tổng hợp của ngày hôm nay. Không phát hiện thiếu hụt.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {stockShortages.map((s) => (
+                    <div key={s.linenTypeId} className="bg-amber-50 border border-amber-200/80 rounded-2xl p-5 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl">⚠️</span>
+                        <div>
+                          <p className="font-extrabold text-amber-950 text-sm">Cảnh báo thiếu hụt: {s.name}</p>
+                          <p className="text-amber-800 text-xxs mt-1 font-semibold leading-relaxed">
+                            Tổng nhu cầu hôm nay của các khoa phòng là <strong className="text-amber-950">{s.reqQty} {s.unit}</strong>, 
+                            nhưng tồn kho sạch dự phòng hiện chỉ còn <strong className="text-amber-950">{s.stockQty} {s.unit}</strong>.
+                          </p>
+                          <p className="text-amber-700 text-[10px] mt-0.5">
+                            Cần cấp phát thêm ít nhất <strong className="text-rose-600">{s.shortageQty} {s.unit}</strong> vào sử dụng để đáp ứng đủ nhu cầu.
+                          </p>
+                        </div>
+                      </div>
+                      {(userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all')) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCirculateLinenTypeId(s.linenTypeId)
+                            setSelectedLinenTypeName(s.name)
+                            setCirculateQty(s.shortageQty)
+                            setSelectedBatchId('')
+                            setShowCirculateModal(true)
+                          }}
+                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl text-xxs transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          Cấp phát nhanh từ kho sạch
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
-              </div>
+              )}
             </div>
-
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-              <span className="text-slate-400 text-xs">🔍</span>
-              <input
-                type="text"
-                placeholder="Tìm nhanh theo tên khoa phòng, hộ lý yêu cầu..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-xs text-slate-800 bg-transparent focus:outline-none placeholder-slate-400"
-              />
-            </div>
-
-            {/* Minimalist Wards Table with Accordions */}
-            {filteredTodayTickets.length === 0 ? (
-              <p className="text-center py-10 text-slate-400 text-xs font-semibold">Không có yêu cầu cấp phát nào khớp bộ lọc.</p>
-            ) : (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-4 py-3 font-bold text-slate-500 w-12 text-center">STT</th>
-                      <th className="px-4 py-3 font-bold text-slate-500">Khoa phòng bệnh viện</th>
-                      <th className="px-4 py-3 font-bold text-slate-500">Hộ lý yêu cầu</th>
-                      <th className="px-4 py-3 font-bold text-slate-500">Thời gian tạo</th>
-                      <th className="px-4 py-3 font-bold text-slate-500 text-center w-32">Trạng thái</th>
-                      <th className="px-4 py-3 font-bold text-slate-500 text-center w-28">Đồ vải</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {filteredTodayTickets.map((t, index) => {
-                      const isExpanded = !!expandedTickets[t.id]
-                      return (
-                        <Fragment key={t.id}>
-                          <tr className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{index + 1}</td>
-                            <td className="px-4 py-4 text-slate-700 font-bold">{t.ward.name}</td>
-                            <td className="px-4 py-4 text-slate-600 font-medium">{t.requesterName}</td>
-                            <td className="px-4 py-4 text-slate-400 font-medium">
-                              {new Date(t.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                            <td className="px-4 py-4 text-center">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                t.status === 'DELIVERED'
-                                  ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                                  : t.status === 'PENDING'
-                                  ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
-                                  : t.status === 'PREPARED'
-                                  ? 'bg-amber-50 border-amber-100 text-amber-600'
-                                  : 'bg-rose-50 border-rose-100 text-rose-600'
-                              }`}>
-                                {t.status === 'DELIVERED'
-                                  ? 'Đã bàn giao'
-                                  : t.status === 'PENDING'
-                                  ? 'Chờ chuẩn bị'
-                                  : t.status === 'PREPARED'
-                                  ? 'Sẵn sàng giao'
-                                  : 'Chưa thực hiện'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-4 text-center">
-                              <button
-                                type="button"
-                                onClick={() => toggleExpandTicket(t.id)}
-                                className="px-2.5 py-1 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-bold text-xxs rounded-lg cursor-pointer transition-all"
-                              >
-                                {isExpanded ? 'Ẩn ❮' : 'Xem chi tiết ❯'}
-                              </button>
-                            </td>
-                          </tr>
-                          {isExpanded && (
-                            <tr className="bg-slate-50/50">
-                              <td colSpan={6} className="px-6 py-4 border-b border-slate-100">
-                                <div className="max-w-xl bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-                                  <h4 className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Đồ vải yêu cầu cấp phát:</h4>
-                                  <div className="divide-y divide-slate-100">
-                                    {t.items.map(item => (
-                                      <div key={item.id} className="flex justify-between py-2 text-xs">
-                                        <span className="text-slate-600 font-semibold">{item.linenType.name}</span>
-                                        <span className="text-slate-800 font-extrabold">{item.quantity} {item.linenType.unit}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-
-                                  {/* Emergency Override Option */}
-                                  {(userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && t.status !== 'DELIVERED' && (
-                                    <div className="border-t border-slate-100 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50 p-2.5 rounded-lg border border-dashed border-slate-200">
-                                      <div>
-                                        <p className="text-[10px] font-bold text-slate-800">Cập nhật nhanh khẩn cấp (Dành cho Quản trị viên)</p>
-                                        <p className="text-[9px] text-slate-400">Cho phép giám sát duyệt thay đổi trạng thái nếu xưởng gặp sự cố.</p>
-                                      </div>
-                                      <div className="flex gap-2">
-                                        {t.status === 'PREPARED' && (
-                                          <select
-                                            id={`admin-orderly-select-${t.id}`}
-                                            className="bg-white border border-slate-200 rounded px-2 py-1 text-xxs font-bold text-slate-600 focus:outline-none"
-                                          >
-                                            <option value="">Chọn hộ lý giao</option>
-                                            {staff.map(s => (
-                                              <option key={s.id_nhanvien} value={s.nhanvien}>{s.nhanvien}</option>
-                                            ))}
-                                          </select>
-                                        )}
-                                        <button
-                                          onClick={() => {
-                                            if (t.status === 'PREPARED') {
-                                              const sel = document.getElementById(`admin-orderly-select-${t.id}`) as HTMLSelectElement
-                                              const val = sel?.value || 'Hộ lý'
-                                              handleUpdateStatus(t.id).then(() => {
-                                                showFeedback('success', `Đã cập nhật trạng thái & bàn giao cho hộ lý ${val}!`)
-                                              })
-                                            } else {
-                                              handleUpdateStatus(t.id)
-                                            }
-                                          }}
-                                          disabled={submitting}
-                                          className="bg-[#0066b2] hover:bg-blue-700 text-white font-extrabold text-xxs px-3 py-1 rounded cursor-pointer"
-                                        >
-                                          {t.status === 'PENDING' ? '✓ Xác nhận soạn xong' : '🚚 Xác nhận bàn giao'}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
 

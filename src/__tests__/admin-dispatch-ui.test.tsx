@@ -51,14 +51,14 @@ beforeEach(() => {
 })
 
 describe('Admin Dispatch Monitor UI Page', () => {
-  it('renders the supervisor dashboard and can expand ticket details', async () => {
+  it('renders the supervisor dashboard tabs and can expand ticket details', async () => {
     render(<AdminDispatch />)
     
     // Wait for tickets loading and header rendering
-    expect(await screen.findByText(/Tiến độ cấp phát hôm nay/i)).toBeInTheDocument()
-    expect(screen.getByText(/Theo dõi trạng thái các Khoa phòng hôm nay/i)).toBeInTheDocument()
+    expect(await screen.findByText(/📊 Giám sát cấp phát/i)).toBeInTheDocument()
+    expect(screen.getByText(/⚠️ Cảnh báo thiếu hụt/i)).toBeInTheDocument()
     
-    // Verify ward name is present
+    // Verify ward name is present in monitor tab by default
     expect((await screen.findAllByText(/Ngoai Tong Hop/i)).length).toBeGreaterThan(0)
     
     // Toggle expand button
@@ -69,5 +69,16 @@ describe('Admin Dispatch Monitor UI Page', () => {
     expect(await screen.findByText(/Đồ vải yêu cầu cấp phát:/i)).toBeInTheDocument()
     expect(screen.getAllByText(/Mền xanh/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/10 Cái/i).length).toBeGreaterThan(0)
+  })
+
+  it('can switch to shortage tab and see message', async () => {
+    render(<AdminDispatch />)
+    
+    // Switch to shortages tab
+    const tabBtn = await screen.findByText(/⚠️ Cảnh báo thiếu hụt/i)
+    fireEvent.click(tabBtn)
+
+    // Check header
+    expect(await screen.findByText(/Danh sách Cảnh báo Thiếu hụt đồ vải hôm nay/i)).toBeInTheDocument()
   })
 })

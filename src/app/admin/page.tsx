@@ -78,15 +78,12 @@ function AdminDashboardContent() {
   const [newRole, setNewRole] = useState('LAUNDRY')
   const [newPermissions, setNewPermissions] = useState<string[]>([])
 
-  // Editing permissions states
+  // Editing user states
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editUserRole, setEditUserRole] = useState('LAUNDRY')
+  const [editUserPassword, setEditUserPassword] = useState('')
   const [editUserPermissions, setEditUserPermissions] = useState<string[]>([])
   const [submittingUserEdit, setSubmittingUserEdit] = useState(false)
-
-  // Editing password states
-  const [pwdUser, setPwdUser] = useState<User | null>(null)
-  const [newPwdVal, setNewPwdVal] = useState('')
-  const [submittingPwd, setSubmittingPwd] = useState(false)
 
   // Security constraint: track currently logged-in user
   const [currentUsername, setCurrentUsername] = useState('')
@@ -260,68 +257,45 @@ function AdminDashboardContent() {
     }
   }
 
-  const handleUpdatePermissions = async (e: React.FormEvent) => {
+  const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
 
+    if (editUserPassword.trim() && editUserPassword.trim().length < 6) {
+      showFeedback('error', 'Mật khẩu mới phải tối thiểu 6 ký tự')
+      return
+    }
+
     setSubmittingUserEdit(true)
     try {
+      const payload: any = {
+        id: editingUser.id,
+        role: editUserRole,
+        permissions: editUserPermissions,
+      }
+      if (editUserPassword.trim()) {
+        payload.password = editUserPassword.trim()
+      }
+
       const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editingUser.id,
-          permissions: editUserPermissions,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
 
       if (res.ok) {
         setEditingUser(null)
-        showFeedback('success', `Đã cập nhật quyền cho tài khoản: ${data.username}`)
+        setEditUserPassword('')
+        showFeedback('success', `Đã cập nhật thông tin tài khoản: ${data.username}`)
         fetchUsers()
       } else {
-        showFeedback('error', data.error || 'Lỗi khi cập nhật quyền hạn')
+        showFeedback('error', data.error || 'Lỗi khi cập nhật tài khoản')
       }
     } catch (err) {
       showFeedback('error', 'Lỗi kết nối hệ thống')
     } finally {
       setSubmittingUserEdit(false)
-    }
-  }
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!pwdUser || !newPwdVal.trim()) return
-
-    if (newPwdVal.length < 6) {
-      showFeedback('error', 'Mật khẩu mới phải tối thiểu 6 ký tự')
-      return
-    }
-
-    setSubmittingPwd(true)
-    try {
-      const res = await fetch('/api/admin/users', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: pwdUser.id,
-          password: newPwdVal.trim(),
-        }),
-      })
-      const data = await res.json()
-
-      if (res.ok) {
-        setPwdUser(null)
-        setNewPwdVal('')
-        showFeedback('success', `Đã đặt lại mật khẩu cho tài khoản: ${data.username}`)
-      } else {
-        showFeedback('error', data.error || 'Lỗi khi đổi mật khẩu')
-      }
-    } catch (err) {
-      showFeedback('error', 'Lỗi kết nối hệ thống')
-    } finally {
-      setSubmittingPwd(false)
     }
   }
 
@@ -405,12 +379,9 @@ function AdminDashboardContent() {
 
   const handleStartEditUser = (user: User) => {
     setEditingUser(user)
+    setEditUserRole(user.role)
+    setEditUserPassword('')
     setEditUserPermissions(user.permissions || [])
-  }
-
-  const handleStartChangePassword = (user: User) => {
-    setPwdUser(user)
-    setNewPwdVal('')
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1168,13 +1139,7 @@ function AdminDashboardContent() {
                                 onClick={() => handleStartEditUser(u)}
                                 className="text-[#0066b2] hover:text-blue-700 font-bold transition-colors cursor-pointer text-xs"
                               >
-                                Đổi quyền
-                              </button>
-                              <button
-                                onClick={() => handleStartChangePassword(u)}
-                                className="text-slate-500 hover:text-slate-700 font-bold transition-colors cursor-pointer text-xs"
-                              >
-                                Mật khẩu
+                                Chỉnh sửa
                               </button>
                               <button
                                 onClick={() => handleDeleteUser(u.id, u.username)}
@@ -1277,11 +1242,13 @@ function AdminDashboardContent() {
 
       {/* Edit User Permissions Modal */}
       {editingUser && (
+      {/* Edit User Modal */}
+      {editingUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-6">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-6 animate-scale-up">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="text-sm font-extrabold text-slate-900">
-                Chỉnh sửa quyền hạn: <span className="text-[#0066b2] font-bold">{editingUser.username}</span>
+                Chỉnh sửa tài khoản: <span className="text-[#0066b2] font-bold">{editingUser.username}</span>
               </h3>
               <button
                 type="button"
@@ -1292,10 +1259,54 @@ function AdminDashboardContent() {
               </button>
             </div>
 
-            <form onSubmit={handleUpdatePermissions} className="space-y-4">
+            <form onSubmit={handleUpdateUser} className="space-y-4">
               <div>
-                <label className="block text-xxs text-slate-500 mb-2 font-semibold">Tích chọn các quyền được phép truy cập</label>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 max-h-[240px] overflow-y-auto space-y-4">
+                <label className="block text-xxs text-slate-500 mb-1.5 font-semibold uppercase tracking-wider">Tên đăng nhập</label>
+                <input
+                  type="text"
+                  value={editingUser.username}
+                  disabled
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-500 font-semibold cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xxs text-slate-500 mb-1.5 font-semibold uppercase tracking-wider">Vai trò chính</label>
+                <select
+                  value={editUserRole}
+                  onChange={(e) => {
+                    const r = e.target.value
+                    setEditUserRole(r)
+                    if (r === 'SUPERVISOR') {
+                      setEditUserPermissions(['admin:view', 'admin:ticket'])
+                    } else if (r === 'ADMIN') {
+                      setEditUserPermissions(['system:all', 'admin:view', 'admin:users', 'admin:linen', 'admin:ward', 'admin:staff', 'inventory:all', 'admin:batch', 'supervisor:laundry_procure', 'supervisor:laundry_damage', 'inventory:min_stock', 'dispatch:all', 'admin:ticket', 'supervisor:ward_history', 'supervisor:laundry_aggregate', 'laundry:all', 'laundry:view'])
+                    } else if (r === 'LAUNDRY') {
+                      setEditUserPermissions(['laundry:view'])
+                    }
+                  }}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all font-semibold"
+                >
+                  <option value="LAUNDRY">LAUNDRY (Nhà giặt)</option>
+                  <option value="SUPERVISOR">SUPERVISOR (Giám sát)</option>
+                  <option value="ADMIN">ADMIN (Quản trị viên)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xxs text-slate-500 mb-1.5 font-semibold uppercase tracking-wider">Mật khẩu mới (để trống nếu không đổi)</label>
+                <input
+                  type="password"
+                  value={editUserPassword}
+                  onChange={(e) => setEditUserPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu mới nếu muốn đổi..."
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xxs text-slate-500 mb-2 font-semibold uppercase tracking-wider">Phân quyền chi tiết</label>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 max-h-[180px] overflow-y-auto space-y-4">
                   {PERMISSION_GROUPS.map((group) => {
                     const isSelf = editingUser.username === currentUsername
                     const isParentDisabled = isSelf && group.parentKey === 'system:all'
@@ -1351,58 +1362,7 @@ function AdminDashboardContent() {
                   disabled={submittingUserEdit}
                   className="flex-1 bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
                 >
-                  {submittingUserEdit ? 'Đang lưu...' : 'Lưu quyền hạn'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Change Password Modal */}
-      {pwdUser && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-6">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-extrabold text-slate-900">
-                Đặt lại mật khẩu cho: <span className="text-[#0066b2] font-bold">{pwdUser.username}</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPwdUser(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-xs p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div>
-                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Mật khẩu mới (tối thiểu 6 ký tự)</label>
-                <input
-                  type="password"
-                  value={newPwdVal}
-                  onChange={(e) => setNewPwdVal(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                  required
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPwdUser(null)}
-                  className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingPwd}
-                  className="flex-1 bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer text-center"
-                >
-                  {submittingPwd ? 'Đang đổi...' : 'Đổi mật khẩu'}
+                  {submittingUserEdit ? 'Đang lưu...' : 'Lưu tài khoản'}
                 </button>
               </div>
             </form>

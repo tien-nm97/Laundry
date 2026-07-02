@@ -3,16 +3,13 @@ import { verifyPermission } from '@/lib/jwt'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  // Verify permissions: admin:batch, inventory:all, or role ADMIN
-  const auth = await verifyPermission(request, 'admin:batch')
+  // Verify permissions: inventory:manage
+  const auth = await verifyPermission(request, 'inventory:manage')
   if (auth.error) {
-    const auth2 = await verifyPermission(request, 'inventory:all')
-    if (auth2.error) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status })
-    }
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
 
-  const payload = auth.payload || (await verifyPermission(request, 'inventory:all')).payload
+  const payload = auth.payload!
 
   try {
     const body = await request.json()

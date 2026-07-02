@@ -54,7 +54,8 @@ function AdminLayoutContent({
     { 
       name: 'Quản lý Loại vải', 
       href: '/admin?tab=linen', 
-      roles: ['ADMIN'],
+      roles: ['ADMIN', 'SUPERVISOR'],
+      requiredPermissions: ['linen:view', 'linen:manage'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -64,7 +65,8 @@ function AdminLayoutContent({
     { 
       name: 'Quản lý Khoa phòng', 
       href: '/admin?tab=ward', 
-      roles: ['ADMIN'],
+      roles: ['ADMIN', 'SUPERVISOR'],
+      requiredPermissions: ['ward:view', 'ward:manage'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -74,7 +76,8 @@ function AdminLayoutContent({
     { 
       name: 'Quản lý Hộ lý', 
       href: '/admin?tab=staff', 
-      roles: ['ADMIN'],
+      roles: ['ADMIN', 'SUPERVISOR'],
+      requiredPermissions: ['staff:view', 'staff:manage'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -85,7 +88,7 @@ function AdminLayoutContent({
       name: 'Quản lý kho', 
       href: '/admin/inventory', 
       roles: ['ADMIN', 'SUPERVISOR'],
-      requiredPermissions: ['supervisor:laundry_procure', 'supervisor:laundry_damage', 'admin:batch', 'inventory:all'],
+      requiredPermissions: ['inventory:view', 'inventory:manage', 'inventory:all'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -96,7 +99,7 @@ function AdminLayoutContent({
       name: 'Yêu cầu cấp phát', 
       href: '/admin/dispatch', 
       roles: ['ADMIN', 'SUPERVISOR'],
-      requiredPermissions: ['supervisor:ward_history', 'supervisor:laundry_aggregate', 'admin:ticket', 'dispatch:all'],
+      requiredPermissions: ['dispatch:view', 'dispatch:manage', 'dispatch:all'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -106,7 +109,8 @@ function AdminLayoutContent({
     { 
       name: 'Quản lý Tài khoản', 
       href: '/admin?tab=users', 
-      roles: ['ADMIN'],
+      roles: ['ADMIN', 'SUPERVISOR'],
+      requiredPermissions: ['users:view', 'users:manage'],
       icon: (active: boolean) => (
         <svg className={`w-4 h-4 mr-2.5 transition-colors ${active ? 'text-white' : 'text-slate-400 group-hover:text-[#0066b2]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />

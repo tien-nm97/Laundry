@@ -28,9 +28,7 @@ export async function POST(request: Request) {
   const userPerms = payload.permissions || []
   const hasPerm =
     payload.role === 'ADMIN' ||
-    hasPermission(userPerms, 'supervisor:laundry_damage') ||
-    hasPermission(userPerms, 'admin:batch') ||
-    hasPermission(userPerms, 'inventory:all')
+    hasPermission(userPerms, 'inventory:manage')
     
   if (!hasPerm) {
     return NextResponse.json({ error: 'Không có quyền thực hiện thao tác này' }, { status: 403 })

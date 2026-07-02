@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRealtimeSync } from '@/lib/useRealtimeSync'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { PERMISSION_GROUPS } from '@/lib/permissions'
+import { PERMISSION_GROUPS, hasPermission } from '@/lib/permissions'
 
 interface LinenType {
   id: string
@@ -36,31 +36,35 @@ interface User {
 }
 
 const AVAILABLE_PERMISSIONS = [
-  // Nhóm 1: Quản trị Hệ thống
+  // Nhóm 1: Quản trị Hệ thống & Người dùng
   { key: 'system:all', label: 'Toàn quyền Quản trị Hệ thống' },
   { key: 'admin:view', label: 'Xem trang Admin Dashboard' },
-  { key: 'admin:users', label: 'Quản lý Tài khoản (User)' },
-  { key: 'admin:linen', label: 'Quản lý Loại đồ vải (Linen)' },
-  { key: 'admin:ward', label: 'Quản lý Khoa phòng' },
-  { key: 'admin:staff', label: 'Quản lý Hộ lý (Staff)' },
+  { key: 'users:view', label: 'Xem danh sách Tài khoản' },
+  { key: 'users:manage', label: 'Can thiệp Tài khoản (Thêm/Sửa/Xóa)' },
 
-  // Nhóm 2: Quản lý Kho đồ vải
+  // Nhóm 2: Danh mục Cấu hình
+  { key: 'metadata:all', label: 'Toàn quyền Cấu hình Danh mục' },
+  { key: 'linen:view', label: 'Xem danh sách Loại vải' },
+  { key: 'linen:manage', label: 'Can thiệp Loại vải (Thêm mới)' },
+  { key: 'ward:view', label: 'Xem danh sách Khoa phòng' },
+  { key: 'ward:manage', label: 'Can thiệp Khoa phòng (Thêm/QR)' },
+  { key: 'staff:view', label: 'Xem danh sách Hộ lý' },
+  { key: 'staff:manage', label: 'Can thiệp Hộ lý (Thêm/Sửa/Xóa)' },
+
+  // Nhóm 3: Quản lý Kho đồ vải
   { key: 'inventory:all', label: 'Toàn quyền Quản lý Kho' },
-  { key: 'admin:batch', label: 'Nhập lô hàng mới (Import)' },
-  { key: 'supervisor:laundry_procure', label: 'Lên kế hoạch đặt hàng (Thu mua)' },
-  { key: 'supervisor:laundry_damage', label: 'Báo hỏng & Đề xuất tái chế đồ vải' },
-  { key: 'inventory:min_stock', label: 'Sửa định mức tồn tối thiểu' },
+  { key: 'inventory:view', label: 'Xem số liệu tồn kho & biến động' },
+  { key: 'inventory:manage', label: 'Can thiệp Kho (Nhập/Đưa vào SD/Báo hỏng/Tái chế)' },
 
-  // Nhóm 3: Giám sát & Cấp phát
+  // Nhóm 4: Giám sát & Cấp phát
   { key: 'dispatch:all', label: 'Toàn quyền Giám sát & Cấp phát' },
-  { key: 'admin:ticket', label: 'Xử lý & Xác nhận cấp phát phiếu' },
-  { key: 'supervisor:ward_history', label: 'Xem lịch sử yêu cầu của Khoa/Phòng' },
-  { key: 'supervisor:laundry_aggregate', label: 'Quản lý yêu cầu tập trung' },
-  { key: 'superior:cleaning', label: 'Giám sát Vệ sinh: Báo cáo đồ vải hư hỏng' },
+  { key: 'dispatch:view', label: 'Xem yêu cầu cấp phát & lịch sử khoa' },
+  { key: 'dispatch:manage', label: 'Can thiệp cấp phát (Duyệt/Phân công/Xác nhận)' },
 
-  // Nhóm 4: Nghiệp vụ Nhà giặt
+  // Nhóm 5: Nghiệp vụ Nhà giặt
   { key: 'laundry:all', label: 'Toàn quyền Nghiệp vụ Nhà giặt' },
   { key: 'laundry:view', label: 'Truy cập giao diện Nhà giặt' },
+  { key: 'laundry:manage', label: 'Can thiệp nghiệp vụ Nhà giặt (Quét mã/Phân loại)' },
 ]
 
 function AdminDashboardContent() {
@@ -77,6 +81,10 @@ function AdminDashboardContent() {
   const [newPassword, setNewPassword] = useState('')
   const [newRole, setNewRole] = useState('LAUNDRY')
   const [newPermissions, setNewPermissions] = useState<string[]>([])
+
+  // Current user role and permissions
+  const [userRole, setUserRole] = useState('')
+  const [userPermissions, setUserPermissions] = useState<string[]>([])
 
   // Editing user states
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -121,11 +129,13 @@ function AdminDashboardContent() {
         if (res.ok) {
           const data = await res.json()
           setCurrentUsername(data.username || '')
+          setUserRole(data.role || '')
+          setUserPermissions(data.permissions || [])
           if (data.role === 'SUPERVISOR') {
             const perms = data.permissions || []
-            if (perms.includes('supervisor:ward_history') || perms.includes('supervisor:laundry_aggregate') || perms.includes('admin:ticket') || perms.includes('dispatch:all')) {
+            if (perms.includes('dispatch:view') || perms.includes('dispatch:manage') || perms.includes('dispatch:all') || perms.includes('supervisor:ward_history') || perms.includes('supervisor:laundry_aggregate') || perms.includes('admin:ticket')) {
               router.push('/admin/dispatch')
-            } else if (perms.includes('supervisor:laundry_procure') || perms.includes('supervisor:laundry_damage') || perms.includes('admin:batch') || perms.includes('inventory:all')) {
+            } else if (perms.includes('inventory:view') || perms.includes('inventory:manage') || perms.includes('inventory:all') || perms.includes('supervisor:laundry_procure') || perms.includes('supervisor:laundry_damage') || perms.includes('admin:batch')) {
               router.push('/admin/inventory')
             } else {
               router.push('/admin/dispatch')
@@ -672,6 +682,11 @@ function AdminDashboardContent() {
   const searchParams = useSearchParams()
   const currentTab = searchParams.get('tab') || 'linen'
 
+  const canManageLinen = userRole === 'ADMIN' || hasPermission(userPermissions, 'linen:manage')
+  const canManageWard = userRole === 'ADMIN' || hasPermission(userPermissions, 'ward:manage')
+  const canManageStaff = userRole === 'ADMIN' || hasPermission(userPermissions, 'staff:manage')
+  const canManageUsers = userRole === 'ADMIN' || hasPermission(userPermissions, 'users:manage')
+
   let pageTitle = 'Danh mục hệ thống'
   let pageDescription = 'Quản lý cấu hình danh mục hệ thống.'
 
@@ -719,42 +734,44 @@ function AdminDashboardContent() {
             </h2>
 
             {/* Form */}
-            <form onSubmit={handleCreateLinenType} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-              <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Thêm loại đồ vải mới</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-xxs text-slate-500 mb-1 font-semibold">Tên loại đồ vải</label>
-                  <input
-                    type="text"
-                    value={ltName}
-                    onChange={(e) => setLtName(e.target.value)}
-                    placeholder="Ga trải giường, vỏ gối..."
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                    required
-                  />
+            {canManageLinen && (
+              <form onSubmit={handleCreateLinenType} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Thêm loại đồ vải mới</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xxs text-slate-500 mb-1 font-semibold">Tên loại đồ vải</label>
+                    <input
+                      type="text"
+                      value={ltName}
+                      onChange={(e) => setLtName(e.target.value)}
+                      placeholder="Ga trải giường, vỏ gối..."
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xxs text-slate-500 mb-1 font-semibold">Đơn vị</label>
+                    <select
+                      value={ltUnit}
+                      onChange={(e) => setLtUnit(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
+                    >
+                      <option value="Cái">Cái</option>
+                      <option value="Bộ">Bộ</option>
+                      <option value="Chiếc">Chiếc</option>
+                      <option value="Đôi">Đôi</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xxs text-slate-500 mb-1 font-semibold">Đơn vị</label>
-                  <select
-                    value={ltUnit}
-                    onChange={(e) => setLtUnit(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
-                  >
-                    <option value="Cái">Cái</option>
-                    <option value="Bộ">Bộ</option>
-                    <option value="Chiếc">Chiếc</option>
-                    <option value="Đôi">Đôi</option>
-                  </select>
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={submittingType}
-                className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer"
-              >
-                Thêm loại đồ vải
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={submittingType}
+                  className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer"
+                >
+                  Thêm loại đồ vải
+                </button>
+              </form>
+            )}
 
             {/* List */}
             <div className="flex-1 overflow-auto max-h-[450px]">
@@ -799,27 +816,29 @@ function AdminDashboardContent() {
             </h2>
 
             {/* Form */}
-            <form onSubmit={handleCreateWard} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-              <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Thêm khoa phòng mới</h3>
-              <div>
-                <label className="block text-xxs text-slate-500 mb-1 font-semibold">Tên khoa phòng</label>
-                <input
-                  type="text"
-                  value={wardName}
-                  onChange={(e) => setWardName(e.target.value)}
-                  placeholder="Ví dụ: Khoa Cấp Cứu, Khoa Nhi..."
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={submittingWard}
-                className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer"
-              >
-                Tạo khoa phòng
-              </button>
-            </form>
+            {canManageWard && (
+              <form onSubmit={handleCreateWard} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Thêm khoa phòng mới</h3>
+                <div>
+                  <label className="block text-xxs text-slate-500 mb-1 font-semibold">Tên khoa phòng</label>
+                  <input
+                    type="text"
+                    value={wardName}
+                    onChange={(e) => setWardName(e.target.value)}
+                    placeholder="Ví dụ: Khoa Cấp Cứu, Khoa Nhi..."
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={submittingWard}
+                  className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer"
+                >
+                  Tạo khoa phòng
+                </button>
+              </form>
+            )}
 
             {/* List */}
             <div className="flex-1 overflow-auto max-h-[450px]">
@@ -888,52 +907,54 @@ function AdminDashboardContent() {
             </h2>
 
             {/* Form */}
-            <form onSubmit={handleCreateOrderly} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-              <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Thêm hộ lý mới</h3>
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                {/* Image Upload Area */}
-                <label className="relative flex flex-col items-center justify-center w-16 h-16 rounded-full border-2 border-dashed border-slate-300 hover:border-[#0066b2] bg-white cursor-pointer overflow-hidden transition-all shrink-0 shadow-inner group">
-                  {orderlyImage ? (
-                    <img src={orderlyImage} alt="Avatar Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-slate-400 gap-0.5">
-                      <span className="text-sm font-bold">＋</span>
-                      <span className="text-[8px] font-bold uppercase tracking-wider">Ảnh</span>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                </label>
-
-                {/* Name and Button input */}
-                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                  <div className="sm:col-span-3">
-                    <label className="block text-xxs text-slate-500 mb-1 font-semibold">Họ và tên nhân viên</label>
+            {canManageStaff && (
+              <form onSubmit={handleCreateOrderly} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Thêm hộ lý mới</h3>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  {/* Image Upload Area */}
+                  <label className="relative flex flex-col items-center justify-center w-16 h-16 rounded-full border-2 border-dashed border-slate-300 hover:border-[#0066b2] bg-white cursor-pointer overflow-hidden transition-all shrink-0 shadow-inner group">
+                    {orderlyImage ? (
+                      <img src={orderlyImage} alt="Avatar Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-400 gap-0.5">
+                        <span className="text-sm font-bold">＋</span>
+                        <span className="text-[8px] font-bold uppercase tracking-wider">Ảnh</span>
+                      </div>
+                    )}
                     <input
-                      type="text"
-                      value={orderlyName}
-                      onChange={(e) => setOrderlyName(e.target.value)}
-                      placeholder="Ví dụ: Nguyễn Văn A..."
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                      required
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
                     />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <button
-                      type="submit"
-                      disabled={submittingOrderly}
-                      className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer h-[34px]"
-                    >
-                      Thêm
-                    </button>
+                  </label>
+
+                  {/* Name and Button input */}
+                  <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                    <div className="sm:col-span-3">
+                      <label className="block text-xxs text-slate-500 mb-1 font-semibold">Họ và tên nhân viên</label>
+                      <input
+                        type="text"
+                        value={orderlyName}
+                        onChange={(e) => setOrderlyName(e.target.value)}
+                        placeholder="Ví dụ: Nguyễn Văn A..."
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-1">
+                      <button
+                        type="submit"
+                        disabled={submittingOrderly}
+                        className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer h-[34px]"
+                      >
+                        Thêm
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </form>
+              </form>
+            )}
 
             {/* List */}
             <div className="flex-1 overflow-auto max-h-[450px]">
@@ -948,7 +969,7 @@ function AdminDashboardContent() {
                       <tr className="bg-slate-50 border-b border-slate-200">
                         <th className="px-4 py-3 font-bold text-slate-500 w-16 text-center">Hình ảnh</th>
                         <th className="px-4 py-3 font-bold text-slate-500">Họ tên nhân viên</th>
-                        <th className="px-4 py-3 font-bold text-slate-500 w-20 text-center">Thao tác</th>
+                        {canManageStaff && <th className="px-4 py-3 font-bold text-slate-500 w-20 text-center">Thao tác</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
@@ -970,14 +991,16 @@ function AdminDashboardContent() {
                               </div>
                             </td>
                             <td className="px-4 py-3 font-semibold text-slate-700">{o.nhanvien}</td>
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => handleStartEdit(o)}
-                                className="text-[#0066b2] hover:text-blue-700 font-bold transition-colors cursor-pointer text-xs"
-                              >
-                                Sửa
-                              </button>
-                            </td>
+                            {canManageStaff && (
+                              <td className="px-4 py-3 text-center">
+                                <button
+                                  onClick={() => handleStartEdit(o)}
+                                  className="text-[#0066b2] hover:text-blue-700 font-bold transition-colors cursor-pointer text-xs"
+                                >
+                                  Sửa
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         )
                       })}
@@ -998,100 +1021,104 @@ function AdminDashboardContent() {
             </h2>
 
             {/* Form */}
-            <form onSubmit={handleCreateUser} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-              <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Tạo tài khoản mới</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xxs text-slate-500 mb-1 font-semibold">Tên đăng nhập</label>
-                  <input
-                    type="text"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="admin_khoa, laundry_staff..."
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xxs text-slate-500 mb-1 font-semibold">Mật khẩu (tối thiểu 6 ký tự)</label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xxs text-slate-500 mb-1 font-semibold">Vai trò chính</label>
-                  <select
-                    value={newRole}
-                    onChange={(e) => {
-                      const r = e.target.value
-                      setNewRole(r)
-                      if (r === 'SUPERVISOR') {
-                        setNewPermissions(['admin:view', 'admin:ticket'])
-                      } else if (r === 'ADMIN') {
-                        setNewPermissions(['system:all', 'admin:view', 'admin:users', 'admin:linen', 'admin:ward', 'admin:staff', 'inventory:all', 'admin:batch', 'supervisor:laundry_procure', 'supervisor:laundry_damage', 'inventory:min_stock', 'dispatch:all', 'admin:ticket', 'supervisor:ward_history', 'supervisor:laundry_aggregate', 'laundry:all', 'laundry:view'])
-                      } else if (r === 'LAUNDRY') {
-                        setNewPermissions(['laundry:view'])
-                      }
-                    }}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
-                  >
-                    <option value="LAUNDRY">LAUNDRY (Nhà giặt)</option>
-                    <option value="SUPERVISOR">SUPERVISOR (Giám sát)</option>
-                    <option value="ADMIN">ADMIN (Quản trị viên)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xxs text-slate-500 mb-1 font-semibold">Phân quyền chi tiết</label>
-                  <div className="bg-white border border-slate-200 rounded-lg p-3 max-h-[220px] overflow-y-auto space-y-3.5">
-                    {PERMISSION_GROUPS.map((group) => (
-                      <div key={group.key} className="space-y-1.5">
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-0.5">
-                          {group.label}
-                        </div>
-                        <label className="flex items-center gap-2 text-xxs text-[#0066b2] font-extrabold cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={newPermissions.includes(group.parentKey)}
-                            onChange={() => handleToggleNewParentPermission(group.parentKey, group.children.map(c => c.key))}
-                            className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-3.5 w-3.5"
-                          />
-                          {group.parentLabel}
-                        </label>
-                        <div className="pl-4 space-y-1">
-                          {group.children.map((child) => (
-                            <label key={child.key} className="flex items-center gap-2 text-[11px] text-slate-600 font-semibold cursor-pointer hover:text-slate-800">
-                              <input
-                                type="checkbox"
-                                checked={newPermissions.includes(child.key)}
-                                onChange={() => handleToggleNewChildPermission(child.key, group.parentKey, group.children.map(c => c.key))}
-                                className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-3 w-3"
-                              />
-                              {child.label}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+            {canManageUsers && (
+              <form onSubmit={handleCreateUser} className="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                <h3 className="text-xxs font-extrabold text-slate-500 uppercase tracking-wider">Tạo tài khoản mới</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xxs text-slate-500 mb-1 font-semibold">Tên đăng nhập</label>
+                    <input
+                      type="text"
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
+                      placeholder="admin_khoa, laundry_staff..."
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xxs text-slate-500 mb-1 font-semibold">Mật khẩu (tối thiểu 6 ký tự)</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0066b2] focus:ring-1 focus:ring-[#0066b2] transition-all"
+                      required
+                    />
                   </div>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={submittingUser}
-                className="w-full bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2 rounded-lg text-xs transition-all cursor-pointer h-[34px]"
-              >
-                Tạo tài khoản
-              </button>
-            </form>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xxs text-slate-500 mb-1 font-semibold">Vai trò chính</label>
+                    <select
+                      value={newRole}
+                      onChange={(e) => {
+                        const r = e.target.value
+                        setNewRole(r)
+                        if (r === 'SUPERVISOR') {
+                          setNewPermissions(['admin:view', 'dispatch:manage'])
+                        } else if (r === 'ADMIN') {
+                          setNewPermissions(['system:all', 'admin:view', 'users:view', 'users:manage', 'linen:view', 'linen:manage', 'ward:view', 'ward:manage', 'staff:view', 'staff:manage', 'inventory:all', 'inventory:view', 'inventory:manage', 'dispatch:all', 'dispatch:view', 'dispatch:manage', 'laundry:all', 'laundry:view', 'laundry:manage'])
+                        } else if (r === 'LAUNDRY') {
+                          setNewPermissions(['laundry:view'])
+                        }
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2] transition-all"
+                    >
+                      <option value="LAUNDRY">LAUNDRY (Nhà giặt)</option>
+                      <option value="SUPERVISOR">SUPERVISOR (Giám sát)</option>
+                      <option value="ADMIN">ADMIN (Quản trị viên)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xxs text-slate-500 mb-2 font-semibold">Phân quyền chi tiết</label>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200 max-h-[140px] overflow-y-auto space-y-4 shadow-inner">
+                      {PERMISSION_GROUPS.map((group) => (
+                        <div key={group.key} className="space-y-1.5">
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-0.5">
+                            {group.label}
+                          </div>
+                          <label className="flex items-center gap-2 text-xs text-[#0066b2] font-extrabold cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newPermissions.includes(group.parentKey)}
+                              onChange={() => handleToggleNewParentPermission(group.parentKey, group.children.map(c => c.key))}
+                              className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-4 w-4"
+                            />
+                            {group.parentLabel}
+                          </label>
+                          <div className="pl-4 space-y-1">
+                            {group.children.map((child) => (
+                              <label key={child.key} className="flex items-center gap-2 text-xs text-slate-600 font-semibold cursor-pointer hover:text-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={newPermissions.includes(child.key)}
+                                  onChange={() => handleToggleNewChildPermission(child.key, group.parentKey, group.children.map(c => c.key))}
+                                  className="rounded border-slate-300 text-[#0066b2] focus:ring-[#0066b2] h-3.5 w-3.5"
+                                />
+                                {child.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={submittingUser}
+                    className="px-6 py-2.5 bg-[#0066b2] hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/10 cursor-pointer"
+                  >
+                    {submittingUser ? 'Đang tạo...' : 'Tạo tài khoản'}
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* List */}
             <div className="flex-1 overflow-auto max-h-[450px]">
@@ -1104,9 +1131,9 @@ function AdminDashboardContent() {
                   <table className="w-full border-collapse text-left text-xs">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-4 py-3 font-bold text-slate-500 w-1/3">Tài khoản</th>
-                        <th className="px-4 py-3 font-bold text-slate-500 w-1/3">Quyền hạn</th>
-                        <th className="px-4 py-3 font-bold text-slate-500 w-1/3 text-center">Thao tác</th>
+                        <th className="px-4 py-3 font-bold text-slate-500">Tên đăng nhập / Vai trò</th>
+                        <th className="px-4 py-3 font-bold text-slate-500">Quyền hạn chi tiết</th>
+                        {canManageUsers && <th className="px-4 py-3 font-bold text-slate-500 w-20 text-center">Thao tác</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
@@ -1114,9 +1141,9 @@ function AdminDashboardContent() {
                         const isSelf = u.username === currentUsername
                         return (
                           <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                                {u.username}
+                            <td className="px-4 py-3 font-semibold text-slate-700">
+                              <div className="flex items-center gap-1.5">
+                                <span>{u.username}</span>
                                 {isSelf && (
                                   <span className="bg-blue-50 text-blue-600 border border-blue-100 text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase">
                                     Bạn
@@ -1155,14 +1182,16 @@ function AdminDashboardContent() {
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => handleStartEditUser(u)}
-                                className="text-[#0066b2] hover:text-blue-700 font-bold transition-colors cursor-pointer text-xs"
-                              >
-                                Chỉnh sửa
-                              </button>
-                            </td>
+                            {canManageUsers && (
+                              <td className="px-4 py-3 text-center">
+                                <button
+                                  onClick={() => handleStartEditUser(u)}
+                                  className="text-[#0066b2] hover:text-blue-700 font-bold transition-colors cursor-pointer text-xs"
+                                >
+                                  Chỉnh sửa
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         )
                       })}
@@ -1290,9 +1319,9 @@ function AdminDashboardContent() {
                     const r = e.target.value
                     setEditUserRole(r)
                     if (r === 'SUPERVISOR') {
-                      setEditUserPermissions(['admin:view', 'admin:ticket'])
+                      setEditUserPermissions(['admin:view', 'dispatch:manage'])
                     } else if (r === 'ADMIN') {
-                      setEditUserPermissions(['system:all', 'admin:view', 'admin:users', 'admin:linen', 'admin:ward', 'admin:staff', 'inventory:all', 'admin:batch', 'supervisor:laundry_procure', 'supervisor:laundry_damage', 'inventory:min_stock', 'dispatch:all', 'admin:ticket', 'supervisor:ward_history', 'supervisor:laundry_aggregate', 'laundry:all', 'laundry:view'])
+                      setEditUserPermissions(['system:all', 'admin:view', 'users:view', 'users:manage', 'linen:view', 'linen:manage', 'ward:view', 'ward:manage', 'staff:view', 'staff:manage', 'inventory:all', 'inventory:view', 'inventory:manage', 'dispatch:all', 'dispatch:view', 'dispatch:manage', 'laundry:all', 'laundry:view', 'laundry:manage'])
                     } else if (r === 'LAUNDRY') {
                       setEditUserPermissions(['laundry:view'])
                     }
@@ -1340,7 +1369,7 @@ function AdminDashboardContent() {
                         </label>
                         <div className="pl-4 space-y-1">
                           {group.children.map((child) => {
-                            const isChildDisabled = isSelf && child.key === 'admin:users'
+                            const isChildDisabled = isSelf && (child.key === 'admin:users' || child.key === 'users:manage')
                             return (
                               <label key={child.key} className={`flex items-center gap-2 text-xs text-slate-600 font-semibold cursor-pointer hover:text-slate-800 ${isChildDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 <input

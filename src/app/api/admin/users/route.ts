@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 
 // GET /api/admin/users: Lấy danh sách users
 export async function GET(request: Request) {
-  const auth = await verifyPermission(request, 'admin:users')
+  const auth = await verifyPermission(request, 'users:view')
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
 // POST /api/admin/users: Tạo mới user
 export async function POST(request: Request) {
-  const auth = await verifyPermission(request, 'admin:users')
+  const auth = await verifyPermission(request, 'users:manage')
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
 // PUT /api/admin/users: Sửa quyền hạn hoặc đổi mật khẩu
 export async function PUT(request: Request) {
-  const auth = await verifyPermission(request, 'admin:users')
+  const auth = await verifyPermission(request, 'users:manage')
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
@@ -96,7 +96,7 @@ export async function PUT(request: Request) {
       if (role && role !== 'ADMIN') {
         return NextResponse.json({ error: 'Bạn không thể tự hạ vai trò ADMIN của mình' }, { status: 400 })
       }
-      if (permissions && !permissions.includes('admin:users')) {
+      if (permissions && !permissions.includes('users:manage') && !permissions.includes('admin:users')) {
         return NextResponse.json({ error: 'Bạn không thể tự tước quyền quản lý tài khoản của mình' }, { status: 400 })
       }
     }
@@ -148,7 +148,7 @@ export async function PUT(request: Request) {
 
 // DELETE /api/admin/users: Xóa user
 export async function DELETE(request: Request) {
-  const auth = await verifyPermission(request, 'admin:users')
+  const auth = await verifyPermission(request, 'users:manage')
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }

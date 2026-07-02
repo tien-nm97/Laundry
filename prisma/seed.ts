@@ -11,14 +11,25 @@ async function main() {
     where: { username: 'admin' },
     update: {
       permissions: [
+        'system:all',
         'admin:view',
-        'admin:linen',
-        'admin:ward',
-        'admin:staff',
-        'admin:batch',
-        'admin:ticket',
-        'admin:users',
-        'laundry:view'
+        'users:view',
+        'users:manage',
+        'linen:view',
+        'linen:manage',
+        'ward:view',
+        'ward:manage',
+        'staff:view',
+        'staff:manage',
+        'inventory:all',
+        'inventory:view',
+        'inventory:manage',
+        'dispatch:all',
+        'dispatch:view',
+        'dispatch:manage',
+        'laundry:all',
+        'laundry:view',
+        'laundry:manage'
       ]
     },
     create: {
@@ -26,14 +37,25 @@ async function main() {
       passwordHash,
       role: 'ADMIN',
       permissions: [
+        'system:all',
         'admin:view',
-        'admin:linen',
-        'admin:ward',
-        'admin:staff',
-        'admin:batch',
-        'admin:ticket',
-        'admin:users',
-        'laundry:view'
+        'users:view',
+        'users:manage',
+        'linen:view',
+        'linen:manage',
+        'ward:view',
+        'ward:manage',
+        'staff:view',
+        'staff:manage',
+        'inventory:all',
+        'inventory:view',
+        'inventory:manage',
+        'dispatch:all',
+        'dispatch:view',
+        'dispatch:manage',
+        'laundry:all',
+        'laundry:view',
+        'laundry:manage'
       ],
     },
   });
@@ -41,52 +63,52 @@ async function main() {
   await prisma.user.upsert({
     where: { username: 'laundry' },
     update: {
-      permissions: ['laundry:view']
+      permissions: ['laundry:view', 'laundry:manage']
     },
     create: {
       username: 'laundry',
       passwordHash,
       role: 'LAUNDRY',
-      permissions: ['laundry:view'],
+      permissions: ['laundry:view', 'laundry:manage'],
     },
   });
 
   await prisma.user.upsert({
     where: { username: 'supervisor' },
     update: {
-      permissions: ['admin:view', 'admin:ticket']
+      permissions: ['admin:view', 'dispatch:manage']
     },
     create: {
       username: 'supervisor',
       passwordHash,
       role: 'SUPERVISOR',
-      permissions: ['admin:view', 'admin:ticket'],
+      permissions: ['admin:view', 'dispatch:manage'],
     },
   });
 
   await prisma.user.upsert({
     where: { username: 'superior_cleaning' },
     update: {
-      permissions: ['admin:view', 'admin:ticket', 'superior:cleaning', 'supervisor:ward_history']
+      permissions: ['admin:view', 'dispatch:manage', 'dispatch:view', 'laundry:view']
     },
     create: {
       username: 'superior_cleaning',
       passwordHash,
       role: 'SUPERVISOR',
-      permissions: ['admin:view', 'admin:ticket', 'superior:cleaning', 'supervisor:ward_history'],
+      permissions: ['admin:view', 'dispatch:manage', 'dispatch:view', 'laundry:view'],
     },
   });
 
   await prisma.user.upsert({
     where: { username: 'supervisor_laundry' },
     update: {
-      permissions: ['admin:view', 'admin:ticket', 'supervisor:laundry_aggregate', 'supervisor:laundry_damage', 'supervisor:laundry_procure']
+      permissions: ['admin:view', 'inventory:manage', 'inventory:view', 'dispatch:view']
     },
     create: {
       username: 'supervisor_laundry',
       passwordHash,
       role: 'SUPERVISOR',
-      permissions: ['admin:view', 'admin:ticket', 'supervisor:laundry_aggregate', 'supervisor:laundry_damage', 'supervisor:laundry_procure'],
+      permissions: ['admin:view', 'inventory:manage', 'inventory:view', 'dispatch:view'],
     },
   });
 

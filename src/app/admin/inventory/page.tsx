@@ -96,6 +96,9 @@ export default function AdminInventory() {
   const [userRole, setUserRole] = useState('')
   const [userPermissions, setUserPermissions] = useState<string[]>([])
 
+  const canViewStockNumbers = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:view')
+  const canManageInventory = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')
+
   // Modal Approve Control
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [selectedProposal, setSelectedProposal] = useState<RecycleProposal | null>(null)
@@ -525,7 +528,7 @@ export default function AdminInventory() {
         </div>
         
         <div className="flex items-center gap-2">
-          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:laundry_procure') || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all')) && (
+          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')) && (
             <button
               onClick={() => {
                 if (linenTypes.length > 0) setSelectedLinenTypeId(linenTypes[0].id)
@@ -536,7 +539,7 @@ export default function AdminInventory() {
               ＋ Nhập lô hàng mới
             </button>
           )}
-          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:laundry_damage') || hasPermission(userPermissions, 'inventory:all')) && (
+          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')) && (
             <button
               onClick={() => setShowRecycleModal(true)}
               className="px-4 py-2 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100/60 rounded-xl text-xs font-bold transition-all cursor-pointer"
@@ -578,7 +581,7 @@ export default function AdminInventory() {
                   <th className="px-4 py-3 font-bold text-slate-900 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <span>Tồn tối thiểu</span>
-                      {(userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:min_stock') || hasPermission(userPermissions, 'supervisor:laundry_procure') || hasPermission(userPermissions, 'inventory:all')) && (
+                      {(userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')) && (
                         <button
                           type="button"
                           onClick={openMinStockModal}
@@ -595,25 +598,34 @@ export default function AdminInventory() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {inventory.map((item) => (
-                  <tr key={item.linenTypeId} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-4 font-bold text-slate-700">{item.name}</td>
-                    <td className="px-4 py-4 text-center text-slate-500">{item.unit}</td>
-                    <td className="px-4 py-4 text-center font-bold">
-                      {item.minStock > 0 && item.originalStock <= item.minStock ? (
-                        <span className="text-rose-600 font-extrabold flex items-center justify-center gap-1 w-fit mx-auto" title="Dưới định mức tồn tối thiểu!">
-                          <span>{item.originalStock}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 font-bold">⚠️ Thấp</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-800">{item.originalStock}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-center font-bold text-[#0066b2]">{item.inCirculation}</td>
-                    <td className="px-4 py-4 text-center font-bold text-rose-600">{item.discarded}</td>
-                    <td className="px-4 py-4 text-center font-black text-slate-900 bg-slate-50/30">{item.minStock}</td>
-                  </tr>
-                ))}
+                {inventory.map((item) => {
+                  const showStock = canViewStockNumbers
+                  const originalVal = showStock ? item.originalStock : '***'
+                  const circulationVal = showStock ? item.inCirculation : '***'
+                  const discardedVal = showStock ? item.discarded : '***'
+                  const minStockVal = showStock ? item.minStock : '***'
+                  const isLow = showStock && item.minStock > 0 && item.originalStock <= item.minStock
+
+                  return (
+                    <tr key={item.linenTypeId} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-4 font-bold text-slate-700">{item.name}</td>
+                      <td className="px-4 py-4 text-center text-slate-500">{item.unit}</td>
+                      <td className="px-4 py-4 text-center font-bold">
+                        {isLow ? (
+                          <span className="text-rose-600 font-extrabold flex items-center justify-center gap-1 w-fit mx-auto" title="Dưới định mức tồn tối thiểu!">
+                            <span>{originalVal}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 font-bold">⚠️ Thấp</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-800">{originalVal}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center font-bold text-[#0066b2]">{circulationVal}</td>
+                      <td className="px-4 py-4 text-center font-bold text-rose-600">{discardedVal}</td>
+                      <td className="px-4 py-4 text-center font-black text-slate-900 bg-slate-50/30">{minStockVal}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -648,13 +660,14 @@ export default function AdminInventory() {
                 {recycleProposals.map((proposal) => {
                   const circulationName = proposal.circulation?.linenType?.name || 'Đồ vải'
                   const batchCode = proposal.circulation?.batch?.code || 'Không rõ'
+                  const showStock = canViewStockNumbers
                   return (
                     <tr key={proposal.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-4 font-bold text-slate-700">
                         <div>{circulationName}</div>
                         <div className="text-xxs font-normal text-slate-400">Lô gốc: {batchCode}</div>
                       </td>
-                      <td className="px-4 py-4 text-center font-bold text-rose-600">{proposal.quantity}</td>
+                      <td className="px-4 py-4 text-center font-bold text-rose-600">{showStock ? proposal.quantity : '***'}</td>
                       <td className="px-4 py-4 text-slate-600 font-medium">{proposal.proposerName}</td>
                       <td className="px-4 py-4 text-slate-500">
                         {new Date(proposal.proposedAt).toLocaleDateString('vi-VN')} {new Date(proposal.proposedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
@@ -677,7 +690,7 @@ export default function AdminInventory() {
                         )}
                       </td>
                       <td className="px-4 py-4 text-center font-bold text-emerald-600">
-                        {proposal.recycledQuantity !== null && proposal.recycledQuantity !== undefined ? `${proposal.recycledQuantity} cái` : '-'}
+                        {proposal.recycledQuantity !== null && proposal.recycledQuantity !== undefined ? (showStock ? `${proposal.recycledQuantity} cái` : '***') : '-'}
                       </td>
                       <td className="px-4 py-4 text-slate-600">
                         {proposal.approverName || '-'}
@@ -745,8 +758,9 @@ export default function AdminInventory() {
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {batches.map((batch) => {
-                  const percentRemaining = (batch.remainingQuantity / batch.totalQuantity) * 100
-                  const canCirculate = batch.remainingQuantity > 0 && (userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all'))
+                  const showStock = canViewStockNumbers
+                  const percentRemaining = showStock ? (batch.remainingQuantity / batch.totalQuantity) * 100 : 0
+                  const canCirculate = batch.remainingQuantity !== null && batch.remainingQuantity !== undefined && batch.remainingQuantity > 0 && (userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage'))
                   return (
                     <tr key={batch.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-4 font-bold text-slate-700">{batch.code}</td>
@@ -754,20 +768,22 @@ export default function AdminInventory() {
                       <td className="px-4 py-4 text-center">
                         <div className="flex flex-col items-center gap-1 w-28 mx-auto">
                           <span className="font-bold text-slate-700 text-xxs">
-                            {batch.remainingQuantity} / {batch.totalQuantity}
+                            {showStock ? `${batch.remainingQuantity} / ${batch.totalQuantity}` : '***'}
                           </span>
-                          <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                            <div
-                              style={{ width: `${percentRemaining}%` }}
-                              className={`h-full rounded-full transition-all ${
-                                percentRemaining === 100
-                                  ? 'bg-emerald-500'
-                                  : percentRemaining === 0
-                                  ? 'bg-slate-300'
-                                  : 'bg-[#0066b2]'
-                              }`}
-                            />
-                          </div>
+                          {showStock && (
+                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                              <div
+                                style={{ width: `${percentRemaining}%` }}
+                                className={`h-full rounded-full transition-all ${
+                                  percentRemaining === 100
+                                    ? 'bg-emerald-500'
+                                    : percentRemaining === 0
+                                    ? 'bg-slate-300'
+                                    : 'bg-[#0066b2]'
+                                }`}
+                              />
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-slate-500">
@@ -980,7 +996,7 @@ export default function AdminInventory() {
                       .reduce((sum, c) => sum + c.activeQuantity, 0)
                     return (
                       <option key={t.id} value={t.id}>
-                        {t.name} (Lưu hành: {activeQty} {t.unit})
+                        {t.name} {canViewStockNumbers ? `(Lưu hành: ${activeQty} ${t.unit})` : ''}
                       </option>
                     )
                   })}
@@ -995,7 +1011,7 @@ export default function AdminInventory() {
                 return (
                   <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 text-xxs text-slate-500 space-y-1">
                     <p>• Mặt hàng: <strong className="text-slate-700">{lt?.name}</strong></p>
-                    <p>• Tổng lưu hành: <strong className="text-slate-700">{activeQty} {lt?.unit}</strong></p>
+                    <p>• Tổng lưu hành: <strong className="text-slate-700">{canViewStockNumbers ? `${activeQty} ${lt?.unit}` : '***'}</strong></p>
                     <p className="text-amber-600 font-medium">• Hệ thống tự động trừ kho từ lô cũ nhất đến lô mới nhất (FIFO).</p>
                   </div>
                 )
@@ -1029,7 +1045,7 @@ export default function AdminInventory() {
                       <span>Thanh lý / Hủy bỏ thông thường</span>
                     </label>
                     
-                    {isEligibleForRecycling && (userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:laundry_damage') || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all')) && (
+                    {isEligibleForRecycling && (userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')) && (
                       <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
                         <input
                           type="radio"
@@ -1323,6 +1339,8 @@ export default function AdminInventory() {
                     typeClass = 'bg-violet-50 text-violet-600 border-violet-100/30'
                   }
 
+                  const showStock = canViewStockNumbers
+
                   return (
                     <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
@@ -1334,9 +1352,9 @@ export default function AdminInventory() {
                         </span>
                       </td>
                       <td className="px-4 py-3 font-semibold text-slate-700">{t.linenType?.name}</td>
-                      <td className="px-4 py-3 text-center font-bold text-slate-600">{t.quantity}</td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-600">{showStock ? t.quantity : '***'}</td>
                       <td className="px-4 py-3 text-slate-600">{t.user}</td>
-                      <td className="px-4 py-3 text-slate-500">{t.details || '-'}</td>
+                      <td className="px-4 py-3 text-slate-500">{showStock ? (t.details || '-') : '***'}</td>
                     </tr>
                   )
                 })}

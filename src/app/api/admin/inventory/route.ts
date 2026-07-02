@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { verifyPermission } from '@/lib/jwt'
+import { hasPermission } from '@/lib/permissions'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -9,6 +10,10 @@ export async function GET(request: Request) {
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
+
+  const userRole = auth.payload?.role as string
+  const userPermissions = (auth.payload?.permissions as string[]) || []
+  const canViewStockNumbers = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:view')
 
   try {
     // 1. Get all linen types with their batches and circulations
@@ -30,11 +35,11 @@ export async function GET(request: Request) {
         linenTypeId: lt.id,
         name: lt.name,
         unit: lt.unit,
-        originalStock,
-        inCirculation,
-        discarded,
-        minStock: lt.minStock,
-        totalAccumulated: originalStock + inCirculation + discarded,
+        originalStock: canViewStockNumbers ? originalStock : null,
+        inCirculation: canViewStockNumbers ? inCirculation : null,
+        discarded: canViewStockNumbers ? discarded : null,
+        minStock: canViewStockNumbers ? lt.minStock : null,
+        totalAccumulated: canViewStockNumbers ? (originalStock + inCirculation + discarded) : null,
       }
     })
 
@@ -45,6 +50,12 @@ export async function GET(request: Request) {
       },
       orderBy: { importedAt: 'desc' },
     })
+
+    const mappedBatches = batches.map(b => ({
+      ...b,
+      totalQuantity: canViewStockNumbers ? b.totalQuantity : null,
+      remainingQuantity: canViewStockNumbers ? b.remainingQuantity : null,
+    }))
 
     // 4. Get active circulations (activeQuantity > 0) for dropdown in damage/recycle flow
     const activeCirculations = await prisma.linenCirculation.findMany({
@@ -72,6 +83,11 @@ export async function GET(request: Request) {
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     })
 
+    const mappedCirculations = activeCirculations.map(c => ({
+      ...c,
+      activeQuantity: canViewStockNumbers ? c.activeQuantity : null,
+    }))
+
     // 5. Get recycle proposals (for tracking and approval list)
     const recycleProposals = await prisma.linenRecycleProposal.findMany({
       include: {
@@ -87,8 +103,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       inventory,
-      batches,
-      activeCirculations,
+      batches: mappedBatches,
+      activeCirculations: mappedCirculations,
       recycleProposals,
     })
   } catch (error: unknown) {

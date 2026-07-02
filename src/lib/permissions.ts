@@ -14,15 +14,27 @@ export interface PermissionGroup {
 export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     key: 'system',
-    label: 'Quản trị Hệ thống',
+    label: 'Quản trị Hệ thống & Người dùng',
     parentKey: 'system:all',
     parentLabel: 'Toàn quyền Quản trị Hệ thống',
     children: [
       { key: 'admin:view', label: 'Xem trang Admin Dashboard' },
-      { key: 'admin:users', label: 'Quản lý Tài khoản (User)' },
-      { key: 'admin:linen', label: 'Quản lý Loại đồ vải (Linen)' },
-      { key: 'admin:ward', label: 'Quản lý Khoa phòng' },
-      { key: 'admin:staff', label: 'Quản lý Hộ lý (Staff)' },
+      { key: 'users:view', label: 'Xem danh sách Tài khoản' },
+      { key: 'users:manage', label: 'Can thiệp Tài khoản (Thêm/Sửa/Xóa)' },
+    ]
+  },
+  {
+    key: 'metadata',
+    label: 'Danh mục Cấu hình',
+    parentKey: 'metadata:all',
+    parentLabel: 'Toàn quyền Cấu hình Danh mục',
+    children: [
+      { key: 'linen:view', label: 'Xem danh sách Loại vải' },
+      { key: 'linen:manage', label: 'Can thiệp Loại vải (Thêm mới)' },
+      { key: 'ward:view', label: 'Xem danh sách Khoa phòng' },
+      { key: 'ward:manage', label: 'Can thiệp Khoa phòng (Thêm/QR)' },
+      { key: 'staff:view', label: 'Xem danh sách Hộ lý' },
+      { key: 'staff:manage', label: 'Can thiệp Hộ lý (Thêm/Sửa/Xóa)' },
     ]
   },
   {
@@ -31,10 +43,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     parentKey: 'inventory:all',
     parentLabel: 'Toàn quyền Quản lý Kho',
     children: [
-      { key: 'admin:batch', label: 'Nhập lô hàng mới (Import)' },
-      { key: 'supervisor:laundry_procure', label: 'Lên kế hoạch đặt hàng (Thu mua)' },
-      { key: 'supervisor:laundry_damage', label: 'Báo hỏng & Đề xuất tái chế đồ vải' },
-      { key: 'inventory:min_stock', label: 'Sửa định mức tồn tối thiểu' },
+      { key: 'inventory:view', label: 'Xem số liệu tồn kho & biến động' },
+      { key: 'inventory:manage', label: 'Can thiệp Kho (Nhập/Đưa vào SD/Báo hỏng/Tái chế)' },
     ]
   },
   {
@@ -43,10 +53,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     parentKey: 'dispatch:all',
     parentLabel: 'Toàn quyền Giám sát & Cấp phát',
     children: [
-      { key: 'admin:ticket', label: 'Xử lý & Xác nhận cấp phát phiếu' },
-      { key: 'supervisor:ward_history', label: 'Xem lịch sử yêu cầu của Khoa/Phòng' },
-      { key: 'supervisor:laundry_aggregate', label: 'Quản lý yêu cầu tập trung' },
-      { key: 'superior:cleaning', label: 'Giám sát Vệ sinh: Báo cáo đồ vải hư hỏng' },
+      { key: 'dispatch:view', label: 'Xem yêu cầu cấp phát & lịch sử khoa' },
+      { key: 'dispatch:manage', label: 'Can thiệp cấp phát (Duyệt/Phân công/Xác nhận)' },
     ]
   },
   {
@@ -56,6 +64,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     parentLabel: 'Toàn quyền Nghiệp vụ Nhà giặt',
     children: [
       { key: 'laundry:view', label: 'Truy cập giao diện Nhà giặt' },
+      { key: 'laundry:manage', label: 'Can thiệp nghiệp vụ Nhà giặt (Quét mã/Phân loại)' },
     ]
   }
 ]
@@ -72,6 +81,31 @@ export function hasPermission(userPerms: string[], requiredPerm: string): boolea
   
   // If user has 'system:all', allow everything
   if (userPerms.includes('system:all')) return true
+
+  // Backwards compatibility mappings for older permission keys
+  if (userPerms.includes('admin:users') && (requiredPerm === 'users:view' || requiredPerm === 'users:manage')) return true
+  if (userPerms.includes('admin:linen') && (requiredPerm === 'linen:view' || requiredPerm === 'linen:manage')) return true
+  if (userPerms.includes('admin:ward') && (requiredPerm === 'ward:view' || requiredPerm === 'ward:manage')) return true
+  if (userPerms.includes('admin:staff') && (requiredPerm === 'staff:view' || requiredPerm === 'staff:manage')) return true
+  
+  if (requiredPerm === 'inventory:manage') {
+    if (userPerms.includes('admin:batch') || 
+        userPerms.includes('supervisor:laundry_damage') || 
+        userPerms.includes('inventory:min_stock') || 
+        userPerms.includes('supervisor:laundry_procure')) return true
+  }
+  if (requiredPerm === 'inventory:view') {
+    if (userPerms.includes('inventory:all') || 
+        userPerms.includes('inventory:view_stock')) return true
+  }
+  if (requiredPerm === 'dispatch:manage') {
+    if (userPerms.includes('admin:ticket') || userPerms.includes('superior:cleaning')) return true
+  }
+  if (requiredPerm === 'dispatch:view') {
+    if (userPerms.includes('supervisor:ward_history') || userPerms.includes('supervisor:laundry_aggregate')) return true
+  }
+  if (requiredPerm === 'laundry:view' && userPerms.includes('laundry:view')) return true
+  if (requiredPerm === 'laundry:manage' && userPerms.includes('laundry:all')) return true
   
   // Find group containing this required permission
   const group = PERMISSION_GROUPS.find(g => 

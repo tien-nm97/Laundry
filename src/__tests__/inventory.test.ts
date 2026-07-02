@@ -28,7 +28,7 @@ describe('Inventory & Recycling Admin APIs', () => {
       userId: '4',
       username: 'laundry_supervisor',
       role: 'SUPERVISOR',
-      permissions: ['admin:view', 'supervisor:laundry_damage', 'supervisor:laundry_procure']
+      permissions: ['admin:view', 'inventory:discard', 'inventory:import', 'inventory:min_stock', 'inventory:circulate', 'inventory:view']
     })
     laundryToken = await signToken({ userId: '3', username: 'laundry', role: 'LAUNDRY' })
 

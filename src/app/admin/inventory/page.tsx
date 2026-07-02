@@ -97,7 +97,10 @@ export default function AdminInventory() {
   const [userPermissions, setUserPermissions] = useState<string[]>([])
 
   const canViewStockNumbers = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:view')
-  const canManageInventory = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')
+  const canImportInventory = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:import')
+  const canCirculateInventory = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:circulate')
+  const canDiscardInventory = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:discard')
+  const canMinStockInventory = userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:min_stock')
 
   // Modal Approve Control
   const [showApproveModal, setShowApproveModal] = useState(false)
@@ -528,7 +531,7 @@ export default function AdminInventory() {
         </div>
         
         <div className="flex items-center gap-2">
-          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')) && (
+          {canImportInventory && (
             <button
               onClick={() => {
                 if (linenTypes.length > 0) setSelectedLinenTypeId(linenTypes[0].id)
@@ -539,7 +542,7 @@ export default function AdminInventory() {
               ＋ Nhập lô hàng mới
             </button>
           )}
-          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')) && (
+          {canDiscardInventory && (
             <button
               onClick={() => setShowRecycleModal(true)}
               className="px-4 py-2 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100/60 rounded-xl text-xs font-bold transition-all cursor-pointer"
@@ -581,7 +584,7 @@ export default function AdminInventory() {
                   <th className="px-4 py-3 font-bold text-slate-900 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <span>Tồn tối thiểu</span>
-                      {(userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')) && (
+                      {canMinStockInventory && (
                         <button
                           type="button"
                           onClick={openMinStockModal}
@@ -760,7 +763,7 @@ export default function AdminInventory() {
                 {batches.map((batch) => {
                   const showStock = canViewStockNumbers
                   const percentRemaining = showStock ? (batch.remainingQuantity / batch.totalQuantity) * 100 : 0
-                  const canCirculate = batch.remainingQuantity !== null && batch.remainingQuantity !== undefined && batch.remainingQuantity > 0 && (userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage'))
+                  const canCirculate = batch.remainingQuantity !== null && batch.remainingQuantity !== undefined && batch.remainingQuantity > 0 && canCirculateInventory
                   return (
                     <tr key={batch.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-4 font-bold text-slate-700">{batch.code}</td>
@@ -1045,7 +1048,7 @@ export default function AdminInventory() {
                       <span>Thanh lý / Hủy bỏ thông thường</span>
                     </label>
                     
-                    {isEligibleForRecycling && (userRole === 'ADMIN' || hasPermission(userPermissions, 'inventory:manage')) && (
+                    {isEligibleForRecycling && canDiscardInventory && (
                       <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
                         <input
                           type="radio"

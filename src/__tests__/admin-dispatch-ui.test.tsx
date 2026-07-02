@@ -43,8 +43,8 @@ describe('Admin Dispatch Tabs UI Page', () => {
     render(<AdminDispatch />)
     
     // Wait for tickets loading
-    expect(await screen.findByText(/📅 Bảng điều phối hôm nay/i)).toBeInTheDocument()
-    expect(screen.getByText(/📊 Tổng hợp số lượng/i)).toBeInTheDocument()
+    expect(await screen.findByText(/📊 Giám sát hôm nay/i)).toBeInTheDocument()
+    expect(screen.getByText(/📈 Tổng hợp số lượng/i)).toBeInTheDocument()
     
     // Wait for tickets data to load
     expect((await screen.findAllByText(/Ngoai Tong Hop/i)).length).toBeGreaterThan(0)
@@ -54,7 +54,7 @@ describe('Admin Dispatch Tabs UI Page', () => {
     render(<AdminDispatch />)
     
     // Wait for component to load tickets
-    const tabButton = await screen.findByText(/📊 Tổng hợp số lượng/i)
+    const tabButton = await screen.findByText(/📈 Tổng hợp số lượng/i)
     fireEvent.click(tabButton)
 
     // Verification of Tab 2

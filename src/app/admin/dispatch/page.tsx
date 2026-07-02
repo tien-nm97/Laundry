@@ -584,13 +584,9 @@ export default function AdminDispatch() {
                       <div className="flex items-start gap-3">
                         <span className="text-xl">⚠️</span>
                         <div>
-                          <p className="font-extrabold text-amber-950 text-sm">Cảnh báo thiếu hụt: {s.name}</p>
-                          <p className="text-amber-800 text-xxs mt-1 font-semibold leading-relaxed">
-                            Tổng nhu cầu hôm nay của các khoa phòng là <strong className="text-amber-950">{s.reqQty} {s.unit}</strong>, 
-                            nhưng tồn kho sạch dự phòng hiện chỉ còn <strong className="text-amber-950">{s.stockQty} {s.unit}</strong>.
-                          </p>
-                          <p className="text-amber-700 text-[10px] mt-0.5">
-                            Cần cấp phát thêm ít nhất <strong className="text-rose-600">{s.shortageQty} {s.unit}</strong> vào sử dụng để đáp ứng đủ nhu cầu.
+                          <p className="font-extrabold text-amber-950 text-sm">Thiếu {s.shortageQty} {s.unit} {s.name}</p>
+                          <p className="text-amber-700 text-xxs mt-0.5 font-semibold">
+                            Yêu cầu: <strong>{s.reqQty}</strong> | Sẵn có: <strong>{s.stockQty}</strong>
                           </p>
                         </div>
                       </div>

@@ -107,8 +107,8 @@ export async function verifyPermission(request: Request, permission: string) {
 
   const userPerms = payload.permissions || []
   
-  // Tài khoản ADMIN mặc định có tất cả quyền nếu không có trường permissions
-  if (payload.role === 'ADMIN' && userPerms.length === 0) {
+  // Tài khoản ADMIN mặc định có tất cả quyền
+  if (payload.role === 'ADMIN') {
     return { payload }
   }
 

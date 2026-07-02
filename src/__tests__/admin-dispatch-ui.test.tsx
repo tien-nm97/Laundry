@@ -24,7 +24,7 @@ beforeEach(() => {
             id: 'ticket-1',
             status: 'PENDING',
             requesterName: 'Ho ly A',
-            createdAt: '2026-06-25T08:00:00.000Z',
+            createdAt: new Date().toISOString(),
             deliveryDate: '',
             ward: { id: 'ward-1', name: 'Ngoai Tong Hop' },
             items: [
@@ -43,21 +43,18 @@ describe('Admin Dispatch Tabs UI Page', () => {
     render(<AdminDispatch />)
     
     // Wait for tickets loading
-    expect(await screen.findByText(/📅 Phiếu theo Ngày/i)).toBeInTheDocument()
-    expect(screen.getByText(/📊 Tổng hợp Đồ vải hằng ngày/i)).toBeInTheDocument()
+    expect(await screen.findByText(/📅 Bảng điều phối hôm nay/i)).toBeInTheDocument()
+    expect(screen.getByText(/📊 Tổng hợp số lượng/i)).toBeInTheDocument()
     
     // Wait for tickets data to load
     expect((await screen.findAllByText(/Ngoai Tong Hop/i)).length).toBeGreaterThan(0)
-    
-    // Verification of Tab 1
-    expect(screen.getByText(/Tháng/i)).toBeInTheDocument()
   })
 
   it('switches to aggregated tab and calculates quantities correctly', async () => {
     render(<AdminDispatch />)
     
     // Wait for component to load tickets
-    const tabButton = await screen.findByText(/📊 Tổng hợp Đồ vải hằng ngày/i)
+    const tabButton = await screen.findByText(/📊 Tổng hợp số lượng/i)
     fireEvent.click(tabButton)
 
     // Verification of Tab 2

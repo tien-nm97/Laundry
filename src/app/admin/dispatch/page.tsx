@@ -31,6 +31,22 @@ interface Ticket {
   items: TicketItem[]
 }
 
+interface Batch {
+  id: string
+  code: string
+  linenTypeId: string
+  linenType?: LinenType
+  totalQuantity: number
+  remainingQuantity: number
+  importedAt: string
+}
+
+interface Staff {
+  id_nhanvien: string
+  nhanvien: string
+  hientrang: string
+}
+
 const formatDateStr = (date: Date) => {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -40,15 +56,33 @@ const formatDateStr = (date: Date) => {
 
 export default function AdminDispatch() {
   const [tickets, setTickets] = useState<Ticket[]>([])
+  const [batches, setBatches] = useState<Batch[]>([])
+  const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Filters
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'PREPARED' | 'DELIVERED' | 'INCOMPLETE'>('ALL')
   const [wardFilter, setWardFilter] = useState<string>('ALL')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [userRole, setUserRole] = useState('')
   const [userPermissions, setUserPermissions] = useState<string[]>([])
-  const [activeTab, setActiveTab] = useState<'TICKETS' | 'AGGREGATE'>('TICKETS')
+  
+  // Tabs: TODAY (Today's taskboard), AGGREGATE (daily sum), HISTORY (Calendar archive)
+  const [activeTab, setActiveTab] = useState<'TODAY' | 'AGGREGATE' | 'HISTORY'>('TODAY')
   const [selectedDate, setSelectedDate] = useState<string>(formatDateStr(new Date()))
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
+
+  // Feedback states
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Circulate modal states (for quick inventory extraction)
+  const [showCirculateModal, setShowCirculateModal] = useState(false)
+  const [circulateLinenTypeId, setCirculateLinenTypeId] = useState('')
+  const [selectedLinenTypeName, setSelectedLinenTypeName] = useState('')
+  const [selectedBatchId, setSelectedBatchId] = useState('')
+  const [circulateQty, setCirculateQty] = useState<number | ''>('')
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -66,7 +100,7 @@ export default function AdminDispatch() {
           if (!canAccessTickets && canAccessAggregate) {
             setActiveTab('AGGREGATE')
           } else {
-            setActiveTab('TICKETS')
+            setActiveTab('TODAY')
           }
         }
       } catch (err) {
@@ -75,13 +109,17 @@ export default function AdminDispatch() {
     }
     fetchProfile()
     fetchTickets()
+    fetchStaff()
+    fetchInventoryData()
   }, [])
 
   // Supabase Realtime sync to auto-refresh database ticket updates
   useRealtimeSync(
-    ['Ticket', 'TicketItem'],
+    ['Ticket', 'TicketItem', 'Batch', 'Staff'],
     () => {
       fetchTickets()
+      fetchInventoryData()
+      fetchStaff()
     },
     'admin-dispatch-sync'
   )
@@ -99,32 +137,192 @@ export default function AdminDispatch() {
     }
   }
 
+  const fetchStaff = async () => {
+    try {
+      const res = await fetch('/api/admin/orderlies')
+      if (res.ok) {
+        setStaff(await res.json())
+      }
+    } catch (err) {
+      console.error('Error fetching staff:', err)
+    }
+  }
+
+  const fetchInventoryData = async () => {
+    try {
+      const res = await fetch('/api/admin/inventory')
+      if (res.ok) {
+        const data = await res.json()
+        setBatches(data.batches || [])
+      }
+    } catch (err) {
+      console.error('Error fetching inventory:', err)
+    }
+  }
+
+  const showFeedback = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text })
+    setTimeout(() => setMessage(null), 4000)
+  }
+
+  const handleUpdateStatus = async (ticketId: string) => {
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/dispatch/tickets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId }),
+      })
+      if (res.ok) {
+        showFeedback('success', 'Đã cập nhật trạng thái phiếu thành công!')
+        fetchTickets()
+      } else {
+        showFeedback('error', 'Lỗi khi cập nhật trạng thái phiếu')
+      }
+    } catch (err) {
+      showFeedback('error', 'Lỗi kết nối')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleQuickCirculate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedBatchId || !circulateQty || Number(circulateQty) <= 0) {
+      showFeedback('error', 'Vui lòng điền đầy đủ các thông tin cấp phát')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/inventory/circulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batchId: selectedBatchId,
+          quantity: Number(circulateQty)
+        })
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        showFeedback('success', 'Rút kho sạch và đưa vào lưu hành sử dụng thành công!')
+        setShowCirculateModal(false)
+        setSelectedBatchId('')
+        setCirculateQty('')
+        fetchInventoryData()
+        fetchTickets()
+      } else {
+        showFeedback('error', data.error || 'Lỗi khi thực hiện cấp phát nhanh')
+      }
+    } catch {
+      showFeedback('error', 'Lỗi kết nối')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   // Calculate stats
   const totalCount = tickets.length
   const pendingCount = tickets.filter(t => t.status === 'PENDING').length
   const preparedCount = tickets.filter(t => t.status === 'PREPARED').length
   const deliveredCount = tickets.filter(t => t.status === 'DELIVERED').length
   const incompleteCount = tickets.filter(t => t.status === 'INCOMPLETE').length
-  const fulfillmentRate = totalCount > 0 ? Math.round((deliveredCount / totalCount) * 100) : 0
 
   // Unique wards list for filtering
-  const wards = Array.from(new Set(tickets.map(t => JSON.stringify(t.ward)))).map(wStr => JSON.parse(wStr) as Ward)
+  const wards = useMemo(() => {
+    const list = Array.from(new Set(tickets.map(t => JSON.stringify(t.ward))))
+    return list.map(wStr => JSON.parse(wStr) as Ward)
+  }, [tickets])
 
-  // Aggregate preparation totals for PENDING tickets
-  const preparationSummary: Record<string, { quantity: number; unit: string }> = {}
-  tickets
-    .filter(t => t.status === 'PENDING')
-    .forEach((t) => {
-      t.items.forEach((item) => {
-        const key = item.linenType.name
-        if (!preparationSummary[key]) {
-          preparationSummary[key] = { quantity: 0, unit: item.linenType.unit }
-        }
-        preparationSummary[key].quantity += item.quantity
-      })
+  // Today's Date representation
+  const todayDateStr = formatDateStr(new Date())
+
+  // Tickets created today
+  const todayTickets = useMemo(() => {
+    return tickets.filter(t => formatDateStr(new Date(t.createdAt)) === todayDateStr)
+  }, [tickets, todayDateStr])
+
+  // Filtered Today Tickets (Search query)
+  const filteredTodayTickets = useMemo(() => {
+    return todayTickets.filter((t) => {
+      const q = searchQuery.toLowerCase().trim()
+      if (!q) return true
+      return (
+        t.ward.name.toLowerCase().includes(q) ||
+        t.requesterName.toLowerCase().includes(q) ||
+        t.id.toLowerCase().includes(q)
+      )
     })
+  }, [todayTickets, searchQuery])
 
-  // 1. Dấu chấm trạng thái của các ngày trên Lịch
+  // Today's total requested quantities per linenType
+  const todayRequestTotals = useMemo(() => {
+    const totals: Record<string, { quantity: number; unit: string; name: string }> = {}
+    todayTickets
+      .filter(t => t.status === 'PENDING' || t.status === 'PREPARED')
+      .forEach((t) => {
+        t.items.forEach((item) => {
+          const typeId = item.linenType.id
+          if (!totals[typeId]) {
+            totals[typeId] = { quantity: 0, unit: item.linenType.unit, name: item.linenType.name }
+          }
+          totals[typeId].quantity += item.quantity
+        })
+      })
+    return totals
+  }, [todayTickets])
+
+  // Clean stock quantities from batches list
+  const cleanStockTotals = useMemo(() => {
+    const totals: Record<string, number> = {}
+    batches.forEach((b) => {
+      const typeId = b.linenTypeId
+      if (totals[typeId] === undefined) {
+        totals[typeId] = 0
+      }
+      totals[typeId] += b.remainingQuantity
+    })
+    return totals
+  }, [batches])
+
+  // Calculate stock shortages compared to today's active requests
+  const stockShortages = useMemo(() => {
+    const shortages: Array<{ linenTypeId: string; name: string; reqQty: number; stockQty: number; shortageQty: number; unit: string }> = []
+    Object.entries(todayRequestTotals).forEach(([typeId, data]) => {
+      const stockQty = cleanStockTotals[typeId] || 0
+      if (stockQty < data.quantity) {
+        shortages.push({
+          linenTypeId: typeId,
+          name: data.name,
+          reqQty: data.quantity,
+          stockQty,
+          shortageQty: data.quantity - stockQty,
+          unit: data.unit
+        })
+      }
+    })
+    return shortages
+  }, [todayRequestTotals, cleanStockTotals])
+
+  // Aggregate preparation totals for PENDING tickets of ALL time (legacy card support)
+  const preparationSummary = useMemo(() => {
+    const summary: Record<string, { quantity: number; unit: string }> = {}
+    tickets
+      .filter(t => t.status === 'PENDING')
+      .forEach((t) => {
+        t.items.forEach((item) => {
+          const key = item.linenType.name
+          if (!summary[key]) {
+            summary[key] = { quantity: 0, unit: item.linenType.unit }
+          }
+          summary[key].quantity += item.quantity
+        })
+      })
+    return summary
+  }, [tickets])
+
+  // Dấu chấm trạng thái của các ngày trên Lịch
   const dateStatusMap = useMemo(() => {
     const statusMap: Record<string, 'DELIVERED' | 'PENDING' | 'INCOMPLETE'> = {}
     tickets.forEach((t) => {
@@ -145,7 +343,7 @@ export default function AdminDispatch() {
     return statusMap
   }, [tickets])
 
-  // 2. Gom nhóm tổng hợp đồ vải hàng ngày (Tab 2)
+  // Gom nhóm tổng hợp đồ vải hàng ngày (Tab 2)
   const dailyAggregates = useMemo(() => {
     const aggregatesMap: Record<string, { date: string; ticketCount: number; items: Record<string, { qty: number; unit: string }> }> = {}
     
@@ -167,7 +365,7 @@ export default function AdminDispatch() {
     return Object.values(aggregatesMap).sort((a, b) => b.date.localeCompare(a.date))
   }, [tickets])
 
-  // 3. Lọc phiếu theo ngày được chọn (Tab 1)
+  // Lọc phiếu theo ngày được chọn (Tab Lịch sử)
   const filteredByDateTickets = useMemo(() => {
     return tickets.filter((t) => {
       const dateStr = formatDateStr(new Date(t.createdAt))
@@ -175,7 +373,7 @@ export default function AdminDispatch() {
     })
   }, [tickets, selectedDate])
 
-  // 4. Lọc chi tiết theo bộ lọc và khoa phòng
+  // Lọc chi tiết theo bộ lọc và khoa phòng
   const filteredTickets = useMemo(() => {
     return filteredByDateTickets.filter((t) => {
       const matchStatus = statusFilter === 'ALL' || t.status === statusFilter
@@ -191,20 +389,16 @@ export default function AdminDispatch() {
     const firstDayOfMonth = new Date(year, month, 1)
     const lastDayOfMonth = new Date(year, month + 1, 0)
     
-    // Ngày đầu tiên của tháng rơi vào thứ mấy (0: Chủ nhật, 1: Thứ 2...)
     let startDayOfWeek = firstDayOfMonth.getDay()
-    // Đổi sang định dạng T2 - CN (T2 là 0, CN là 6)
     startDayOfWeek = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1
 
     const totalDays = lastDayOfMonth.getDate()
     const daysArray = []
 
-    // Đệm các ô trống của tháng trước
     for (let i = 0; i < startDayOfWeek; i++) {
       daysArray.push(null)
     }
 
-    // Đổ các ngày trong tháng
     for (let d = 1; d <= totalDays; d++) {
       daysArray.push(new Date(year, month, d))
     }
@@ -278,7 +472,6 @@ export default function AdminDispatch() {
           })}
         </div>
         
-        {/* Chú thích màu sắc lịch */}
         <div className="flex justify-around border-t border-slate-100 pt-3 mt-3 text-[9px] text-slate-400 font-semibold">
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Đã giao</span>
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Chờ soạn</span>
@@ -296,9 +489,7 @@ export default function AdminDispatch() {
           {userRole === 'ADMIN' ? 'Quản lý Cấp phát Đồ vải' : 'Giám sát Cấp phát Đồ vải'}
         </h1>
         <p className="text-xs text-slate-400 mt-1">
-          {userRole === 'ADMIN'
-            ? 'Theo dõi và xử lý trạng thái yêu cầu cấp phát đồ vải hằng ngày từ các khoa phòng.'
-            : 'Theo dõi trực tiếp trạng thái yêu cầu cấp phát đồ vải hằng ngày từ các khoa phòng.'}
+          Bảng kiểm soát soạn đồ, điều phối bàn giao và cảnh báo thiếu hụt kho theo thời gian thực.
         </p>
       </div>
 
@@ -306,14 +497,14 @@ export default function AdminDispatch() {
       <div className="flex border-b border-slate-200 mb-6">
         {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:ward_history') || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && (
           <button
-            onClick={() => setActiveTab('TICKETS')}
+            onClick={() => setActiveTab('TODAY')}
             className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'TICKETS'
+              activeTab === 'TODAY'
                 ? 'border-[#0066b2] text-[#0066b2]'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
-            📅 Phiếu theo Ngày
+            📅 Bảng điều phối hôm nay
           </button>
         )}
         {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:laundry_aggregate') || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && (
@@ -325,10 +516,28 @@ export default function AdminDispatch() {
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
-            📊 Tổng hợp Đồ vải hằng ngày
+            📊 Tổng hợp số lượng
+          </button>
+        )}
+        {(userRole === 'ADMIN' || hasPermission(userPermissions, 'supervisor:ward_history') || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && (
+          <button
+            onClick={() => setActiveTab('HISTORY')}
+            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'HISTORY'
+                ? 'border-[#0066b2] text-[#0066b2]'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            📁 Tra cứu & Lịch tháng
           </button>
         )}
       </div>
+
+      {message && (
+        <div className={`p-4 rounded-xl border text-sm font-semibold shadow-sm ${message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700'}`}>
+          {message.text}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -357,11 +566,288 @@ export default function AdminDispatch() {
       {loading ? (
         <div className="text-center py-20 bg-white border border-slate-200/80 rounded-2xl">
           <div className="w-8 h-8 border-4 border-slate-200 border-t-[#0066b2] rounded-full animate-spin mx-auto" />
-          <p className="text-slate-400 text-xs mt-3 font-semibold">Đang tải dữ liệu giám sát...</p>
+          <p className="text-slate-400 text-xs mt-3 font-semibold">Đang tải dữ liệu cấp phát...</p>
         </div>
       ) : (
         <>
-          {activeTab === 'TICKETS' && (
+          {/* TAB 1: TODAY TASKBOARD */}
+          {activeTab === 'TODAY' && (
+            <div className="space-y-6">
+              {/* Cảnh báo thiếu hụt kho sạch */}
+              {stockShortages.length > 0 && (
+                <div className="space-y-2">
+                  {stockShortages.map((s) => (
+                    <div key={s.linenTypeId} className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-pulse">
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-base">⚠️</span>
+                        <div>
+                          <p className="font-bold text-amber-950">Cảnh báo thiếu hụt: {s.name}</p>
+                          <p className="text-amber-800 text-[11px] mt-0.5">
+                            Yêu cầu hôm nay là <strong>{s.reqQty} {s.unit}</strong>, nhưng tồn kho sạch dự phòng chỉ còn <strong>{s.stockQty} {s.unit}</strong> (Thiếu <strong>{s.shortageQty}</strong>).
+                          </p>
+                        </div>
+                      </div>
+                      {(userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:batch') || hasPermission(userPermissions, 'inventory:all')) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCirculateLinenTypeId(s.linenTypeId)
+                            setSelectedLinenTypeName(s.name)
+                            setCirculateQty(s.shortageQty)
+                            setSelectedBatchId('')
+                            setShowCirculateModal(true)
+                          }}
+                          className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-xxs transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          Cấp phát nhanh từ kho sạch
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Search Bar */}
+              <div className="flex items-center gap-2 max-w-md bg-white border border-slate-200 rounded-xl px-3 py-2">
+                <span className="text-slate-400">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Tìm theo khoa phòng, hộ lý hoặc mã phiếu..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full text-xs text-slate-800 bg-transparent focus:outline-none"
+                />
+              </div>
+
+              {/* Kanban Column Workflows */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Column 1: Chờ soạn đồ */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 flex flex-col space-y-4">
+                  <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider flex justify-between items-center pb-2 border-b border-slate-200/50">
+                    <span>📥 Chờ soạn đồ (Pending)</span>
+                    <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px]">
+                      {filteredTodayTickets.filter(t => t.status === 'PENDING').length}
+                    </span>
+                  </h3>
+
+                  <div className="space-y-3 overflow-y-auto max-h-[500px]">
+                    {filteredTodayTickets.filter(t => t.status === 'PENDING').length === 0 ? (
+                      <p className="text-xxs text-slate-400 text-center py-8 font-medium">Không có phiếu chờ soạn.</p>
+                    ) : (
+                      filteredTodayTickets.filter(t => t.status === 'PENDING').map((t) => (
+                        <div key={t.id} className="bg-white border border-slate-200/80 p-3 rounded-xl flex flex-col justify-between shadow-sm space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-bold text-xs text-slate-800">{t.ward.name}</p>
+                              <p className="text-[9px] text-slate-400 font-medium">#{t.id.split('-')[0].toUpperCase()} • {t.requesterName}</p>
+                            </div>
+                            <span className="text-[9px] text-slate-400 font-bold">
+                              {new Date(t.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          <div className="border-t border-slate-100 pt-2 space-y-1.5">
+                            {t.items.map(item => (
+                              <div key={item.id} className="flex justify-between text-xxs font-semibold">
+                                <span className="text-slate-500">{item.linenType.name}</span>
+                                <span className="text-slate-800">{item.quantity} {item.linenType.unit}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && (
+                            <button
+                              onClick={() => handleUpdateStatus(t.id)}
+                              disabled={submitting}
+                              className="w-full bg-[#0066b2] hover:bg-blue-700 text-white font-bold text-xxs py-1.5 rounded-lg transition-all cursor-pointer mt-1"
+                            >
+                              ✓ Xác nhận soạn xong
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Column 2: Sẵn sàng bàn giao */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 flex flex-col space-y-4">
+                  <h3 className="text-xs font-black text-amber-600 uppercase tracking-wider flex justify-between items-center pb-2 border-b border-slate-200/50">
+                    <span>🚚 Sẵn sàng giao (Prepared)</span>
+                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px]">
+                      {filteredTodayTickets.filter(t => t.status === 'PREPARED').length}
+                    </span>
+                  </h3>
+
+                  <div className="space-y-3 overflow-y-auto max-h-[500px]">
+                    {filteredTodayTickets.filter(t => t.status === 'PREPARED').length === 0 ? (
+                      <p className="text-xxs text-slate-400 text-center py-8 font-medium">Không có phiếu sẵn sàng giao.</p>
+                    ) : (
+                      filteredTodayTickets.filter(t => t.status === 'PREPARED').map((t) => (
+                        <div key={t.id} className="bg-white border border-slate-200/80 p-3 rounded-xl flex flex-col justify-between shadow-sm space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-bold text-xs text-slate-800">{t.ward.name}</p>
+                              <p className="text-[9px] text-slate-400 font-medium">#{t.id.split('-')[0].toUpperCase()} • {t.requesterName}</p>
+                            </div>
+                            <span className="text-[9px] text-slate-400 font-bold">
+                              {new Date(t.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          <div className="border-t border-slate-100 pt-2 space-y-1.5">
+                            {t.items.map(item => (
+                              <div key={item.id} className="flex justify-between text-xxs font-semibold">
+                                <span className="text-slate-500">{item.linenType.name}</span>
+                                <span className="text-slate-800">{item.quantity} {item.linenType.unit}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {(userRole === 'ADMIN' || hasPermission(userPermissions, 'admin:ticket') || hasPermission(userPermissions, 'dispatch:all')) && (
+                            <div className="space-y-2">
+                              <select
+                                id={`orderly-select-${t.id}`}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xxs font-bold text-slate-600 focus:outline-none focus:border-[#0066b2]"
+                              >
+                                <option value="">-- Chọn hộ lý đi giao --</option>
+                                {staff.map(s => (
+                                  <option key={s.id_nhanvien} value={s.nhanvien}>{s.nhanvien} ({s.hientrang})</option>
+                                ))}
+                              </select>
+
+                              <button
+                                onClick={() => {
+                                  const selectEl = document.getElementById(`orderly-select-${t.id}`) as HTMLSelectElement
+                                  const name = selectEl?.value || 'Hộ lý'
+                                  handleUpdateStatus(t.id).then(() => {
+                                    showFeedback('success', `Đã bàn giao phiếu cho hộ lý ${name}!`)
+                                  })
+                                }}
+                                disabled={submitting}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xxs py-1.5 rounded-lg transition-all cursor-pointer"
+                              >
+                                🚚 Xác nhận bàn giao
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Column 3: Đã bàn giao xong */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 flex flex-col space-y-4">
+                  <h3 className="text-xs font-black text-emerald-600 uppercase tracking-wider flex justify-between items-center pb-2 border-b border-slate-200/50">
+                    <span>✓ Đã giao xong (Delivered)</span>
+                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px]">
+                      {filteredTodayTickets.filter(t => t.status === 'DELIVERED').length}
+                    </span>
+                  </h3>
+
+                  <div className="space-y-3 overflow-y-auto max-h-[500px]">
+                    {filteredTodayTickets.filter(t => t.status === 'DELIVERED').length === 0 ? (
+                      <p className="text-xxs text-slate-400 text-center py-8 font-medium">Chưa có phiếu hoàn thành hôm nay.</p>
+                    ) : (
+                      filteredTodayTickets.filter(t => t.status === 'DELIVERED').map((t) => (
+                        <div key={t.id} className="bg-white/80 border border-slate-200/50 p-3 rounded-xl flex flex-col justify-between shadow-sm space-y-2 opacity-80">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-bold text-xs text-slate-700">{t.ward.name}</p>
+                              <p className="text-[9px] text-slate-400 font-medium">#{t.id.split('-')[0].toUpperCase()} • {t.requesterName}</p>
+                            </div>
+                            <span className="text-[9px] text-slate-400 font-bold">
+                              Giao: {new Date(t.deliveryDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          <div className="border-t border-slate-100 pt-2 space-y-1">
+                            {t.items.map(item => (
+                              <div key={item.id} className="flex justify-between text-xxs font-semibold text-slate-500">
+                                <span>{item.linenType.name}</span>
+                                <span>{item.quantity} {item.linenType.unit}</span>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <div className="text-[9px] bg-slate-100 text-slate-500 rounded p-1.5 font-bold text-center">
+                            Đã giao hàng thành công
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: DAILY AGGREGATE SUMMARY */}
+          {activeTab === 'AGGREGATE' && (
+            <div className="space-y-6">
+              <div className="bg-white border border-slate-200/85 rounded-2xl p-6 shadow-sm">
+                <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                  Tổng hợp số lượng yêu cầu đồ vải hằng ngày
+                </h2>
+
+                {dailyAggregates.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400 text-xs font-semibold">Chưa có dữ liệu cấp phát.</div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-4 py-3 font-bold text-slate-500 w-32">Ngày yêu cầu</th>
+                          <th className="px-4 py-3 font-bold text-slate-500 text-center w-24">Tổng số phiếu</th>
+                          <th className="px-4 py-3 font-bold text-slate-500">Chi tiết số lượng cấp phát</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {dailyAggregates.map((row) => (
+                          <tr key={row.date} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-4 text-slate-700 font-extrabold">
+                              {new Date(row.date).toLocaleDateString('vi-VN')}
+                            </td>
+                            <td className="px-4 py-4 text-center font-bold text-slate-900">
+                              {row.ticketCount} phiếu
+                            </td>
+                            <td className="px-4 py-4 text-slate-600">
+                              <div className="flex flex-wrap gap-2">
+                                {Object.entries(row.items).map(([name, data]) => (
+                                  <span key={name} className="px-2.5 py-1 bg-slate-50 border border-slate-200/60 rounded-lg text-xxs font-bold text-slate-700">
+                                    {name}: <strong className="text-[#0066b2]">{data.qty}</strong> {data.unit}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-blue-50/50 border border-dashed border-blue-200 rounded-2xl p-5 text-slate-700 flex gap-4 items-start">
+                <span className="text-xl">📊</span>
+                <div>
+                  <h4 className="text-xs font-bold text-blue-900 mb-1">
+                    Chỉ số So sánh Tương quan với Số lượng Bệnh nhân (Kế hoạch Phát triển Tiếp theo)
+                  </h4>
+                  <p className="text-[11px] text-blue-800/80 leading-relaxed">
+                    Mục tiêu tiếp theo sẽ tích hợp dữ liệu số lượng bệnh nhân thực tế tại mỗi khoa phòng từ hệ thống quản lý bệnh viện.
+                    Từ đó, hệ thống sẽ tự động vẽ biểu đồ phân tích tương quan giữa số lượng đồ vải cấp phát thực tế so với mật độ giường bệnh,
+                    hỗ trợ tối đa việc giám sát định mức cấp phát, phát hiện sớm các hiện tượng hao hụt bất thường tại các khoa phòng.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: CALENDAR & DETAILED HISTORY SEARCH */}
+          {activeTab === 'HISTORY' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Left Column: Calendar & Prep summary */}
               <div className="lg:col-span-1 space-y-6">
@@ -370,7 +856,7 @@ export default function AdminDispatch() {
                 <div className="bg-white border border-slate-200/85 rounded-2xl p-5 shadow-sm h-fit">
                   <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2 mb-4">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#0066b2]" />
-                    Tổng hợp đang chuẩn bị soạn
+                    Tổng hợp đang chuẩn bị soạn (Pending)
                   </h2>
                   {Object.keys(preparationSummary).length === 0 ? (
                     <p className="text-xs text-slate-400 py-6 text-center">Không có đồ vải nào đang chờ soạn.</p>
@@ -389,7 +875,7 @@ export default function AdminDispatch() {
                 </div>
               </div>
 
-              {/* Right Column: Tickets List */}
+              {/* Right Column: Historical Tickets List */}
               <div className="lg:col-span-2 bg-white border border-slate-200/85 rounded-2xl p-5 shadow-sm flex flex-col space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 gap-4">
                   <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
@@ -397,7 +883,6 @@ export default function AdminDispatch() {
                     Nhật ký yêu cầu cấp phát ngày {new Date(selectedDate).toLocaleDateString('vi-VN')}
                   </h2>
 
-                  {/* Filters */}
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     <select
                       value={wardFilter}
@@ -411,56 +896,19 @@ export default function AdminDispatch() {
                     </select>
 
                     <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/50">
-                      <button
-                        onClick={() => setStatusFilter('ALL')}
-                        className={`px-3 py-1 rounded-md text-xxs font-extrabold transition-all cursor-pointer ${
-                          statusFilter === 'ALL'
-                            ? 'bg-white text-[#0066b2] shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        Tất cả
-                      </button>
-                      <button
-                        onClick={() => setStatusFilter('PENDING')}
-                        className={`px-3 py-1 rounded-md text-xxs font-extrabold transition-all cursor-pointer ${
-                          statusFilter === 'PENDING'
-                            ? 'bg-white text-[#0066b2] shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        Chờ chuẩn bị
-                      </button>
-                      <button
-                        onClick={() => setStatusFilter('PREPARED')}
-                        className={`px-3 py-1 rounded-md text-xxs font-extrabold transition-all cursor-pointer ${
-                          statusFilter === 'PREPARED'
-                            ? 'bg-white text-[#0066b2] shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        Sẵn sàng
-                      </button>
-                      <button
-                        onClick={() => setStatusFilter('DELIVERED')}
-                        className={`px-3 py-1 rounded-md text-xxs font-extrabold transition-all cursor-pointer ${
-                          statusFilter === 'DELIVERED'
-                            ? 'bg-white text-[#0066b2] shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        Đã giao
-                      </button>
-                      <button
-                        onClick={() => setStatusFilter('INCOMPLETE')}
-                        className={`px-3 py-1 rounded-md text-xxs font-extrabold transition-all cursor-pointer ${
-                          statusFilter === 'INCOMPLETE'
-                            ? 'bg-white text-[#0066b2] shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        Chưa thực hiện
-                      </button>
+                      {['ALL', 'PENDING', 'PREPARED', 'DELIVERED', 'INCOMPLETE'].map((st) => (
+                        <button
+                          key={st}
+                          onClick={() => setStatusFilter(st as any)}
+                          className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
+                            statusFilter === st
+                              ? 'bg-white text-[#0066b2] shadow-sm'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          {st === 'ALL' ? 'Tất cả' : st === 'PENDING' ? 'Chờ soạn' : st === 'PREPARED' ? 'Sẵn sàng' : st === 'DELIVERED' ? 'Đã giao' : 'Chưa xong'}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -533,70 +981,90 @@ export default function AdminDispatch() {
               </div>
             </div>
           )}
-
-          {activeTab === 'AGGREGATE' && (
-            <div className="space-y-6">
-              <div className="bg-white border border-slate-200/85 rounded-2xl p-6 shadow-sm">
-                <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                  Tổng hợp số lượng yêu cầu đồ vải hằng ngày
-                </h2>
-
-                {dailyAggregates.length === 0 ? (
-                  <div className="text-center py-12 text-slate-400 text-xs font-semibold">Chưa có dữ liệu cấp phát.</div>
-                ) : (
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                    <table className="w-full border-collapse text-left text-xs">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                          <th className="px-4 py-3 font-bold text-slate-500 w-32">Ngày yêu cầu</th>
-                          <th className="px-4 py-3 font-bold text-slate-500 text-center w-24">Tổng số phiếu</th>
-                          <th className="px-4 py-3 font-bold text-slate-500">Chi tiết số lượng cấp phát</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 bg-white">
-                        {dailyAggregates.map((row) => (
-                          <tr key={row.date} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-4 text-slate-700 font-extrabold">
-                              {new Date(row.date).toLocaleDateString('vi-VN')}
-                            </td>
-                            <td className="px-4 py-4 text-center font-bold text-slate-900">
-                              {row.ticketCount} phiếu
-                            </td>
-                            <td className="px-4 py-4 text-slate-600">
-                              <div className="flex flex-wrap gap-2">
-                                {Object.entries(row.items).map(([name, data]) => (
-                                  <span key={name} className="px-2.5 py-1 bg-slate-50 border border-slate-200/60 rounded-lg text-xxs font-bold text-slate-700">
-                                    {name}: <strong className="text-[#0066b2]">{data.qty}</strong> {data.unit}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* Placeholder tương quan số bệnh nhân */}
-              <div className="bg-blue-50/50 border border-dashed border-blue-200 rounded-2xl p-5 text-slate-700 flex gap-4 items-start">
-                <span className="text-xl">📊</span>
-                <div>
-                  <h4 className="text-xs font-bold text-blue-900 mb-1">
-                    Chỉ số So sánh Tương quan với Số lượng Bệnh nhân (Kế hoạch Phát triển Tiếp theo)
-                  </h4>
-                  <p className="text-[11px] text-blue-800/80 leading-relaxed">
-                    Mục tiêu tiếp theo sẽ tích hợp dữ liệu số lượng bệnh nhân thực tế tại mỗi khoa phòng từ hệ thống quản lý bệnh viện.
-                    Từ đó, hệ thống sẽ tự động vẽ biểu đồ phân tích tương quan giữa số lượng đồ vải cấp phát thực tế so với mật độ giường bệnh,
-                    hỗ trợ tối đa việc giám sát định mức cấp phát, phát hiện sớm các hiện tượng hao hụt bất thường tại các khoa phòng.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </>
+      )}
+
+      {/* Modal Cấp phát nhanh đồ vải sạch (Circulate) */}
+      {showCirculateModal && circulateLinenTypeId && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-scale-up">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-slate-900 text-[#0066b2]">Cấp phát nhanh đồ vải</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCirculateModal(false)
+                  setSelectedBatchId('')
+                  setCirculateQty('')
+                }}
+                className="text-slate-400 hover:text-slate-600 text-base font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickCirculate} className="p-6 space-y-4">
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 text-xxs text-slate-500 space-y-1">
+                <p>• Mặt hàng thiếu hụt: <strong className="text-slate-700">{selectedLinenTypeName}</strong></p>
+                <p>• Số lượng đề xuất bù: <strong className="text-amber-600 font-bold">{circulateQty} cái</strong></p>
+              </div>
+
+              <div>
+                <label className="block text-xxs text-slate-500 mb-1 font-bold">Chọn lô hàng sạch để rút</label>
+                <select
+                  value={selectedBatchId}
+                  onChange={(e) => setSelectedBatchId(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2]"
+                  required
+                >
+                  <option value="">-- Chọn lô hàng sạch còn dự phòng --</option>
+                  {batches
+                    .filter(b => b.linenTypeId === circulateLinenTypeId && b.remainingQuantity > 0)
+                    .map(b => (
+                      <option key={b.id} value={b.id}>
+                        Lô: {b.code} (Còn sạch dự phòng: {b.remainingQuantity})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xxs text-slate-500 mb-1 font-bold">Số lượng rút cấp phát</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={selectedBatchId ? batches.find(b => b.id === selectedBatchId)?.remainingQuantity : undefined}
+                  value={circulateQty}
+                  onChange={(e) => setCirculateQty(e.target.value !== '' ? Number(e.target.value) : '')}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0066b2]"
+                  placeholder="SL đưa vào sử dụng"
+                  required
+                />
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCirculateModal(false)
+                    setSelectedBatchId('')
+                    setCirculateQty('')
+                  }}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-[#0066b2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  {submitting ? 'Đang xử lý...' : 'Xác nhận cấp phát'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   )

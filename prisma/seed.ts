@@ -23,7 +23,10 @@ async function main() {
         'staff:manage',
         'inventory:all',
         'inventory:view',
-        'inventory:manage',
+        'inventory:import',
+        'inventory:circulate',
+        'inventory:discard',
+        'inventory:min_stock',
         'dispatch:all',
         'dispatch:view',
         'dispatch:manage',
@@ -49,7 +52,10 @@ async function main() {
         'staff:manage',
         'inventory:all',
         'inventory:view',
-        'inventory:manage',
+        'inventory:import',
+        'inventory:circulate',
+        'inventory:discard',
+        'inventory:min_stock',
         'dispatch:all',
         'dispatch:view',
         'dispatch:manage',
@@ -102,13 +108,13 @@ async function main() {
   await prisma.user.upsert({
     where: { username: 'supervisor_laundry' },
     update: {
-      permissions: ['admin:view', 'inventory:manage', 'inventory:view', 'dispatch:view']
+      permissions: ['admin:view', 'inventory:import', 'inventory:discard', 'inventory:min_stock', 'inventory:circulate', 'inventory:view', 'dispatch:view']
     },
     create: {
       username: 'supervisor_laundry',
       passwordHash,
       role: 'SUPERVISOR',
-      permissions: ['admin:view', 'inventory:manage', 'inventory:view', 'dispatch:view'],
+      permissions: ['admin:view', 'inventory:import', 'inventory:discard', 'inventory:min_stock', 'inventory:circulate', 'inventory:view', 'dispatch:view'],
     },
   });
 

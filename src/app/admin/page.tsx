@@ -54,7 +54,10 @@ const AVAILABLE_PERMISSIONS = [
   // Nhóm 3: Quản lý Kho đồ vải
   { key: 'inventory:all', label: 'Toàn quyền Quản lý Kho' },
   { key: 'inventory:view', label: 'Xem số liệu tồn kho & biến động' },
-  { key: 'inventory:manage', label: 'Can thiệp Kho (Nhập/Đưa vào SD/Báo hỏng/Tái chế)' },
+  { key: 'inventory:import', label: 'Nhập lô hàng mới' },
+  { key: 'inventory:circulate', label: 'Đưa đồ vải sạch vào sử dụng' },
+  { key: 'inventory:discard', label: 'Báo hỏng đồ vải / đề xuất tái chế' },
+  { key: 'inventory:min_stock', label: 'Sửa định mức tồn tối thiểu' },
 
   // Nhóm 4: Giám sát & Cấp phát
   { key: 'dispatch:all', label: 'Toàn quyền Giám sát & Cấp phát' },
@@ -1060,7 +1063,7 @@ function AdminDashboardContent() {
                         if (r === 'SUPERVISOR') {
                           setNewPermissions(['admin:view', 'dispatch:manage'])
                         } else if (r === 'ADMIN') {
-                          setNewPermissions(['system:all', 'admin:view', 'users:view', 'users:manage', 'linen:view', 'linen:manage', 'ward:view', 'ward:manage', 'staff:view', 'staff:manage', 'inventory:all', 'inventory:view', 'inventory:manage', 'dispatch:all', 'dispatch:view', 'dispatch:manage', 'laundry:all', 'laundry:view', 'laundry:manage'])
+                          setNewPermissions(['system:all', 'admin:view', 'users:view', 'users:manage', 'linen:view', 'linen:manage', 'ward:view', 'ward:manage', 'staff:view', 'staff:manage', 'inventory:all', 'inventory:view', 'inventory:import', 'inventory:circulate', 'inventory:discard', 'inventory:min_stock', 'dispatch:all', 'dispatch:view', 'dispatch:manage', 'laundry:all', 'laundry:view', 'laundry:manage'])
                         } else if (r === 'LAUNDRY') {
                           setNewPermissions(['laundry:view'])
                         }
@@ -1321,7 +1324,7 @@ function AdminDashboardContent() {
                     if (r === 'SUPERVISOR') {
                       setEditUserPermissions(['admin:view', 'dispatch:manage'])
                     } else if (r === 'ADMIN') {
-                      setEditUserPermissions(['system:all', 'admin:view', 'users:view', 'users:manage', 'linen:view', 'linen:manage', 'ward:view', 'ward:manage', 'staff:view', 'staff:manage', 'inventory:all', 'inventory:view', 'inventory:manage', 'dispatch:all', 'dispatch:view', 'dispatch:manage', 'laundry:all', 'laundry:view', 'laundry:manage'])
+                      setEditUserPermissions(['system:all', 'admin:view', 'users:view', 'users:manage', 'linen:view', 'linen:manage', 'ward:view', 'ward:manage', 'staff:view', 'staff:manage', 'inventory:all', 'inventory:view', 'inventory:import', 'inventory:circulate', 'inventory:discard', 'inventory:min_stock', 'dispatch:all', 'dispatch:view', 'dispatch:manage', 'laundry:all', 'laundry:view', 'laundry:manage'])
                     } else if (r === 'LAUNDRY') {
                       setEditUserPermissions(['laundry:view'])
                     }

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { verifyPermission } from '@/lib/jwt'
+import { migratePermissions } from '@/lib/permissions'
 import * as bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 
@@ -21,7 +22,23 @@ export async function GET(request: Request) {
       },
       orderBy: { createdAt: 'desc' },
     })
-    return NextResponse.json(users)
+
+    const migratedUsers = []
+    for (const u of users) {
+      const migrated = migratePermissions(u.permissions)
+      const isChanged = u.permissions.length !== migrated.length || 
+                        u.permissions.some(p => !migrated.includes(p))
+      if (isChanged) {
+        await prisma.user.update({
+          where: { id: u.id },
+          data: { permissions: migrated }
+        })
+        u.permissions = migrated
+      }
+      migratedUsers.push(u)
+    }
+
+    return NextResponse.json(migratedUsers)
   } catch (error) {
     return NextResponse.json({ error: 'Lỗi máy chủ' }, { status: 500 })
   }
@@ -57,7 +74,7 @@ export async function POST(request: Request) {
         username,
         passwordHash,
         role,
-        permissions: permissions || [],
+        permissions: migratePermissions(permissions || []),
       },
       select: {
         id: true,
@@ -120,7 +137,7 @@ export async function PUT(request: Request) {
       updateData.username = trimmedUsername
     }
     if (role) updateData.role = role
-    if (permissions) updateData.permissions = permissions
+    if (permissions) updateData.permissions = migratePermissions(permissions)
     if (password) {
       if (password.length < 6) {
         return NextResponse.json({ error: 'Mật khẩu mới phải tối thiểu 6 ký tự' }, { status: 400 })

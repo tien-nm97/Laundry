@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { signToken } from '@/lib/jwt'
+import { migratePermissions } from '@/lib/permissions'
 import * as bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 
@@ -32,6 +33,17 @@ export async function POST(request: Request) {
         { error: 'Tên đăng nhập hoặc mật khẩu không đúng' },
         { status: 401 }
       )
+    }
+
+    const migratedPerms = migratePermissions(user.permissions)
+    const isChanged = user.permissions.length !== migratedPerms.length || 
+                      user.permissions.some(p => !migratedPerms.includes(p))
+    if (isChanged) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { permissions: migratedPerms }
+      })
+      user.permissions = migratedPerms
     }
 
     const token = await signToken({

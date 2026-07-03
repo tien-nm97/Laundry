@@ -111,3 +111,50 @@ export function hasPermission(userPerms: string[], requiredPerm: string): boolea
   
   return false
 }
+
+export function migratePermissions(perms: string[]): string[] {
+  if (!perms || !Array.isArray(perms)) return []
+  const newPerms = new Set<string>()
+  for (const p of perms) {
+    if (p === 'admin:batch') {
+      newPerms.add('inventory:import')
+      newPerms.add('inventory:circulate')
+    } else if (p === 'supervisor:laundry_damage') {
+      newPerms.add('inventory:discard')
+    } else if (p === 'inventory:min_stock') {
+      newPerms.add('inventory:min_stock')
+    } else if (p === 'supervisor:laundry_procure') {
+      newPerms.add('inventory:import')
+      newPerms.add('inventory:min_stock')
+    } else if (p === 'inventory:view_stock') {
+      newPerms.add('inventory:view')
+    } else if (p === 'inventory:manage') {
+      newPerms.add('inventory:import')
+      newPerms.add('inventory:circulate')
+      newPerms.add('inventory:discard')
+      newPerms.add('inventory:min_stock')
+    } else if (p === 'admin:users') {
+      newPerms.add('users:view')
+      newPerms.add('users:manage')
+    } else if (p === 'admin:linen') {
+      newPerms.add('linen:view')
+      newPerms.add('linen:manage')
+    } else if (p === 'admin:ward') {
+      newPerms.add('ward:view')
+      newPerms.add('ward:manage')
+    } else if (p === 'admin:staff') {
+      newPerms.add('staff:view')
+      newPerms.add('staff:manage')
+    } else if (p === 'laundry:all') {
+      newPerms.add('laundry:view')
+      newPerms.add('laundry:manage')
+    } else if (p === 'admin:ticket' || p === 'superior:cleaning') {
+      newPerms.add('dispatch:manage')
+    } else if (p === 'supervisor:ward_history' || p === 'supervisor:laundry_aggregate') {
+      newPerms.add('dispatch:view')
+    } else {
+      newPerms.add(p)
+    }
+  }
+  return Array.from(newPerms)
+}

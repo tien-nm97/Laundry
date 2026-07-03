@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/jwt'
 import { prisma } from '@/lib/db'
+import { migratePermissions } from '@/lib/permissions'
 
 export async function GET(request: Request) {
   try {
@@ -26,15 +27,21 @@ export async function GET(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: {
-        username: true,
-        role: true,
-        permissions: true,
-      },
     })
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const migratedPerms = migratePermissions(user.permissions)
+    const isChanged = user.permissions.length !== migratedPerms.length || 
+                      user.permissions.some(p => !migratedPerms.includes(p))
+    if (isChanged) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { permissions: migratedPerms }
+      })
+      user.permissions = migratedPerms
     }
 
     return NextResponse.json({

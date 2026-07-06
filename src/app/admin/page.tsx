@@ -136,12 +136,45 @@ function AdminDashboardContent() {
           setUserPermissions(data.permissions || [])
           if (data.role === 'SUPERVISOR') {
             const perms = data.permissions || []
-            if (perms.includes('dispatch:view') || perms.includes('dispatch:manage') || perms.includes('dispatch:all') || perms.includes('supervisor:ward_history') || perms.includes('supervisor:laundry_aggregate') || perms.includes('admin:ticket')) {
+            
+            const hasDispatch = perms.includes('dispatch:view') || 
+                                perms.includes('dispatch:manage') || 
+                                perms.includes('dispatch:all') || 
+                                perms.includes('supervisor:ward_history') || 
+                                perms.includes('supervisor:laundry_aggregate') || 
+                                perms.includes('admin:ticket')
+                                
+            const hasInventory = perms.includes('inventory:view') || 
+                                 perms.includes('inventory:import') || 
+                                 perms.includes('inventory:circulate') || 
+                                 perms.includes('inventory:discard') || 
+                                 perms.includes('inventory:min_stock') || 
+                                 perms.includes('inventory:manage') || 
+                                 perms.includes('inventory:all') || 
+                                 perms.includes('supervisor:laundry_procure') || 
+                                 perms.includes('supervisor:laundry_damage') || 
+                                 perms.includes('admin:batch')
+                                 
+            const hasAdminMain = perms.includes('admin:view') || 
+                                 perms.includes('users:view') || 
+                                 perms.includes('users:manage') || 
+                                 perms.includes('linen:view') || 
+                                 perms.includes('linen:manage') || 
+                                 perms.includes('ward:view') || 
+                                 perms.includes('ward:manage') || 
+                                 perms.includes('staff:view') || 
+                                 perms.includes('staff:manage') ||
+                                 perms.includes('system:all') ||
+                                 perms.includes('metadata:all')
+
+            if (hasDispatch) {
               router.push('/admin/dispatch')
-            } else if (perms.includes('inventory:view') || perms.includes('inventory:manage') || perms.includes('inventory:all') || perms.includes('supervisor:laundry_procure') || perms.includes('supervisor:laundry_damage') || perms.includes('admin:batch')) {
+            } else if (hasInventory) {
               router.push('/admin/inventory')
+            } else if (hasAdminMain) {
+              // Stay on admin main dashboard page
             } else {
-              router.push('/admin/dispatch')
+              router.push('/login')
             }
           }
         }

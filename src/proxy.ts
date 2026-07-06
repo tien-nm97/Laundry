@@ -39,18 +39,37 @@ export async function proxy(request: NextRequest) {
       } else if (payload.role === 'SUPERVISOR') {
         const userPerms = payload.permissions || []
         const canAccessDispatch = isDispatchRoute && (
+          hasPermission(userPerms, 'dispatch:view') ||
+          hasPermission(userPerms, 'dispatch:manage') ||
+          hasPermission(userPerms, 'dispatch:all') ||
           hasPermission(userPerms, 'supervisor:ward_history') ||
           hasPermission(userPerms, 'supervisor:laundry_aggregate') ||
-          hasPermission(userPerms, 'admin:ticket') ||
-          hasPermission(userPerms, 'dispatch:all')
+          hasPermission(userPerms, 'admin:ticket')
         )
         const canAccessInventory = isInventoryRoute && (
+          hasPermission(userPerms, 'inventory:view') ||
+          hasPermission(userPerms, 'inventory:import') ||
+          hasPermission(userPerms, 'inventory:circulate') ||
+          hasPermission(userPerms, 'inventory:discard') ||
+          hasPermission(userPerms, 'inventory:min_stock') ||
+          hasPermission(userPerms, 'inventory:all') ||
           hasPermission(userPerms, 'supervisor:laundry_procure') ||
           hasPermission(userPerms, 'supervisor:laundry_damage') ||
-          hasPermission(userPerms, 'admin:batch') ||
-          hasPermission(userPerms, 'inventory:all')
+          hasPermission(userPerms, 'admin:batch')
         )
-        if (canAccessDispatch || canAccessInventory) {
+        const isMainAdminRoute = !isDispatchRoute && !isInventoryRoute
+        const canAccessMain = isMainAdminRoute && (
+          hasPermission(userPerms, 'admin:view') ||
+          hasPermission(userPerms, 'users:view') ||
+          hasPermission(userPerms, 'users:manage') ||
+          hasPermission(userPerms, 'linen:view') ||
+          hasPermission(userPerms, 'linen:manage') ||
+          hasPermission(userPerms, 'ward:view') ||
+          hasPermission(userPerms, 'ward:manage') ||
+          hasPermission(userPerms, 'staff:view') ||
+          hasPermission(userPerms, 'staff:manage')
+        )
+        if (canAccessDispatch || canAccessInventory || canAccessMain) {
           // Allowed
         } else {
           const loginUrl = new URL('/login', request.url)

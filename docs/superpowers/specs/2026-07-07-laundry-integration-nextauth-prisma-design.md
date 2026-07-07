@@ -1,41 +1,45 @@
-# Đặc tả Thiết kế: Tích hợp Phân hệ Laundry vào Hệ thống Next.js sẵn có (NextAuth.js & Prisma & PostgreSQL)
+# Đặc tả Thiết kế: Tích hợp Module Đồ vải (Laundry) vào Hệ thống BIH Infrastructure Manager
 
-Tài liệu này hướng dẫn chi tiết cách đóng gói phân hệ quản lý đồ vải (Laundry) và tích hợp vào hệ thống Next.js sẵn có của bạn sử dụng **NextAuth.js** (JWT Session), **Prisma** và **PostgreSQL**.
-
----
-
-## 1. Phương án Ánh xạ Vai trò & Cấp bậc (Roles & Ranks Mapping)
-
-Hệ thống đích sử dụng cơ chế phân quyền dựa trên Vai trò (`Role`) và Cấp chức (`Rank`). Chúng ta sẽ ánh xạ các nghiệp vụ của Laundry vào cấu trúc này như sau:
-
-| Nghiệp vụ Laundry | Vai trò Hệ thống đích | Cấp chức yêu cầu | Ghi chú |
-| :--- | :--- | :--- | :--- |
-| **Quản trị hệ thống** | `ADMIN` | Mọi cấp chức | Toàn quyền kiểm soát cấu hình và tài khoản |
-| **Yêu cầu cấp phát đồ vải** | `NURSING` (Điều dưỡng) | `STAFF` hoặc `SUPERVISOR` | Người tạo phiếu yêu cầu cấp ga giường/vỏ gối cho khoa |
-| **Giao nhận/Hộ lý** | `NURSING` / `SUPPLY` | `STAFF` | Hộ lý vận chuyển đồ vải đi giặt/nhận đồ sạch |
-| **Giám sát Kho/Nhà giặt** | `SUPPLY` (Vật tư) | `SUPERVISOR` hoặc `LEADER` | Duyệt cấp phát, báo hỏng, nhập lô hàng |
-| **Nhân viên Nhà giặt** | `SUPPLY` (Vật tư) | `STAFF` | Quét nhận đồ bẩn, phân loại, giao đồ sạch |
+Tài liệu này đặc tả phương án tích hợp và đóng gói phân hệ **Quản lý & Cấp phát Đồ vải (Laundry)** vào dự án gốc **BIH Infrastructure Manager** (`bih-infra-manager`).
 
 ---
 
-## 2. Thiết kế Tích hợp Cơ sở Dữ liệu (Prisma Schema Integration)
+## 1. Bản đồ Định cấu trúc Thư mục tích hợp (Folder Mapping)
 
-Bổ sung các bảng nghiệp vụ của Laundry vào tệp `schema.prisma` của dự án gốc. Chúng ta sẽ liên kết bảng `User` sẵn có của bạn với các mô hình của Laundry:
+Để khớp với cấu trúc thư mục của hệ thống **App-BIH**, phân hệ Laundry sẽ được sắp xếp và đổi tên các đường dẫn tệp tin như sau:
+
+| Tệp tin hiện tại | Vị trí mới trong App-BIH | Nhiệm vụ |
+| :--- | :--- | :--- |
+| **`src/lib/permissions.ts`** | `lib/services/laundry-auth.ts` | Logic kiểm tra quyền hạn của Laundry dựa trên NextAuth session. |
+| **`src/app/api/admin/inventory/...`** | `app/api/laundry/inventory/...` | Các API nghiệp vụ kho (circulate, min-stock, recycle...). |
+| **`src/app/api/admin/linen-types/...`**| `app/api/laundry/linen-types/...`| API quản lý danh mục loại đồ vải. |
+| **`src/app/admin/inventory/page.tsx`** | `app/dashboard/laundry/inventory/page.tsx` | Dashboard quản lý kho đồ vải (đặt trong phân khu `/dashboard`). |
+| **`src/app/admin/dispatch/page.tsx`** | `app/dashboard/laundry/dispatch/page.tsx` | Giao diện điều phối cấp phát cho hộ lý khoa phòng. |
+| **`src/app/laundry/page.tsx`** | `app/dashboard/laundry/operation/page.tsx` | Giao diện tiếp nhận/phân loại dành cho nhân viên nhà giặt. |
+| **`src/app/request/order/page.tsx`** | `app/dashboard/laundry/request/page.tsx` | Cổng gửi yêu cầu đồ vải của Điều dưỡng khoa phòng. |
+
+---
+
+## 2. Thiết kế Cơ sở Dữ liệu tích hợp (Prisma Schema Migration)
+
+Nối (merge) các model của Laundry vào tệp tin [prisma/schema.prisma](file:///d:/OneDrive/desktop/Laundry/prisma/schema.prisma) của hệ thống chính.
+Chúng ta sẽ liên kết các bảng của Laundry với model `User` sẵn có của **BIH** và sử dụng các Enum `Role` và `Rank` hiện tại của hệ thống:
 
 ```prisma
-// Nối thêm trường vào Model User hiện có của hệ thống gốc
+// 1. Ánh xạ liên kết vào Model User sẵn có của BIH
 model User {
-  id          String   @id @default(uuid())
-  username    String   @unique
-  role        Role     // Vai trò (ADMIN, NURSING, SUPPLY...)
-  rank        Rank     // Cấp chức (MANAGER, SUPERVISOR, STAFF...)
-  department  String?  // Phòng ban / Khoa phòng quản lý
+  id          String    @id @default(uuid())
+  username    String    @unique
+  role        Role      // ADMIN, NURSING, SUPPLY...
+  rank        Rank      // MANAGER, LEADER, SUPERVISOR, STAFF...
+  department  String?   // Khoa phòng phụ trách
   
-  // Tích hợp thêm liên kết Laundry:
-  proposals   LinenRecycleProposal[] // Các đề xuất tái chế do user này tạo/duyệt
+  // Liên kết Laundry mới:
+  createdProposals LinenRecycleProposal[] @relation("ProposerRelation")
+  approvedProposals LinenRecycleProposal[] @relation("ApproverRelation")
 }
 
-// Bổ sung các Model nghiệp vụ của Laundry
+// 2. Các Model nghiệp vụ Đồ vải (đặt trong prisma/schema.prisma gốc)
 model LinenType {
   id           String                 @id @default(uuid())
   name         String                 @unique
@@ -46,8 +50,6 @@ model LinenType {
   circulations LinenCirculation[]
   ticketItems  TicketItem[]
   transactions InventoryTransaction[]
-
-  @@map("LinenType")
 }
 
 model Batch {
@@ -77,10 +79,9 @@ model LinenCirculation {
   proposals        LinenRecycleProposal[]
 }
 
-// Hệ thống Phiếu yêu cầu cấp phát & Giao nhận đồ vải
 model Ticket {
   id             String       @id @default(uuid())
-  status         TicketStatus @default(PENDING) // PENDING, APPROVED, SHIPPED, COMPLETED...
+  status         String       @default("PENDING") // PENDING, APPROVED, SHIPPED, COMPLETED
   wardId         String
   requesterName  String
   createdAt      DateTime     @default(now())
@@ -98,7 +99,6 @@ model TicketItem {
   linenType   LinenType @relation(fields: [linenTypeId], references: [id], onDelete: Cascade)
 }
 
-// Các mô hình danh mục bổ sung
 model Ward {
   id        String   @id @default(uuid())
   name      String   @unique
@@ -110,22 +110,74 @@ model Ward {
 
 ---
 
-## 3. Kiến trúc Đăng nhập & Xác thực (NextAuth.js Integration)
+## 3. Xác thực & Phân quyền thông qua NextAuth.js
 
-Thay vì sử dụng cookie JWT tự tạo, chúng ta sẽ viết lại tầng kiểm tra quyền hạn sử dụng NextAuth.js.
+BIH Infrastructure Manager sử dụng **NextAuth.js** với JWT session. Chúng ta sẽ tích hợp các quyền của Laundry dựa vào cấu trúc **Role** và **Rank** của BIH.
 
-### 3.1. Phương án A: Tích hợp Quyền vào JWT Token (NextAuth Callback)
-Bổ sung danh sách các quyền con của Laundry trực tiếp vào session của NextAuth:
+### 3.1. Định nghĩa logic phân quyền Laundry trong `lib/services/laundry-auth.ts`:
+Hệ thống sẽ cấp các quyền ảo (virtual permissions) cho phiên làm việc dựa trên vai trò của nhân sự:
 
 ```typescript
-// pages/api/auth/[...nextauth].ts hoặc app/api/auth/[...nextauth]/route.ts
+import { Role, Rank } from '@prisma/client'
+
+export function getLaundryPermissions(role: Role, rank: Rank): string[] {
+  // ADMIN mặc định có tất cả quyền
+  if (role === 'ADMIN') {
+    return ['laundry:all', 'inventory:all', 'dispatch:all']
+  }
+
+  // Tổ Vật tư (SUPPLY) phụ trách Kho và Nhà giặt
+  if (role === 'SUPPLY') {
+    if (rank === 'MANAGER' || rank === 'LEADER' || rank === 'SUPERVISOR') {
+      return [
+        'inventory:view',
+        'inventory:import',
+        'inventory:circulate',
+        'inventory:discard',
+        'inventory:min_stock',
+        'laundry:view',
+        'laundry:manage',
+        'dispatch:view',
+        'dispatch:manage'
+      ]
+    }
+    // Nhân viên vật tư thường
+    return ['inventory:view', 'laundry:view', 'laundry:manage']
+  }
+
+  // Tổ Điều dưỡng (NURSING) phụ trách yêu cầu và nhận đồ tại khoa
+  if (role === 'NURSING') {
+    if (rank === 'MANAGER' || rank === 'LEADER' || rank === 'SUPERVISOR') {
+      return ['dispatch:view', 'dispatch:manage']
+    }
+    return ['dispatch:view']
+  }
+
+  return []
+}
+
+export function hasLaundryPermission(userPermissions: string[], requiredPermission: string): boolean {
+  if (userPermissions.includes(requiredPermission)) return true
+  
+  // Kiểm tra quyền cha
+  if (requiredPermission.startsWith('inventory:') && userPermissions.includes('inventory:all')) return true
+  if (requiredPermission.startsWith('laundry:') && userPermissions.includes('laundry:all')) return true
+  if (requiredPermission.startsWith('dispatch:') && userPermissions.includes('dispatch:all')) return true
+  
+  return false
+}
+```
+
+### 3.2. Cập nhật NextAuth Callback (`app/api/auth/[...nextauth]/route.ts`)
+Ánh xạ các quyền này vào session để cả Client-side và API-side có thể dùng trực tiếp:
+
+```typescript
+// Thêm vào callbacks của NextAuth:
 callbacks: {
   async jwt({ token, user }) {
     if (user) {
       token.role = user.role;
       token.rank = user.rank;
-      token.department = user.department;
-      // Tự động phân quyền dựa trên Role & Rank của user
       token.permissions = getLaundryPermissions(user.role, user.rank);
     }
     return token;
@@ -141,44 +193,39 @@ callbacks: {
 }
 ```
 
-### 3.2. Viết lại Middleware Auth Adapter (`src/lib/auth-bridge.ts`)
-Viết một hàm tiện ích để kiểm tra quyền hạn của Session NextAuth ở các API route của Laundry:
+---
+
+## 4. Tận dụng các hạ tầng sẵn có của BIH
+
+### 4.1. Dịch vụ gửi Email thông báo (`lib/email.ts`)
+Thay vì dùng thư viện nodemailer tự cài đặt, phân hệ Laundry sẽ gọi trực tiếp dịch vụ email sẵn có của BIH để gửi thông báo duyệt đề xuất tái chế hoặc cảnh báo tồn kho tối thiểu:
 
 ```typescript
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { NextResponse } from 'next/server'
+import { sendEmail } from '@/lib/email'
 
-export async function verifyLaundrySession(request: Request, requiredPermission: string) {
-  const session = await getServerSession(authOptions)
-  
-  if (!session || !session.user) {
-    return { error: 'Chưa đăng nhập', status: 401 }
-  }
+await sendEmail({
+  to: 'manager@bih-hospital.com',
+  subject: '[Laundry Alert] Ga giường sắp hết dưới hạn mức tồn tối thiểu',
+  text: 'Kho ga giường hiện tại còn 15 cái, dưới hạn mức tối thiểu là 50 cái. Vui lòng phê duyệt nhập lô mới.'
+})
+```
 
-  // Admin mặc định thông qua
-  if (session.user.role === 'ADMIN') {
-    return { payload: session.user }
-  }
+### 4.2. Lưu trữ tệp tin đính kèm (MinIO S3)
+Các ảnh chụp đính kèm khi báo hỏng đồ vải rách/bẩn sẽ được upload trực tiếp lên **MinIO Object Storage** của BIH thông qua S3 client thay vì lưu cục bộ:
 
-  const userPerms = session.user.permissions || []
-  if (!userPerms.includes(requiredPermission)) {
-    return { error: 'Không có quyền truy cập nghiệp vụ này', status: 403 }
-  }
+```typescript
+import { uploadToS3 } from '@/lib/services/s3' // Giả định helper S3 của BIH
 
-  return { payload: session.user }
-}
+// Lưu tệp đính kèm khi báo hỏng
+const fileUrl = await uploadToS3(fileBuffer, 'laundry-discards/' + fileName)
 ```
 
 ---
 
-## 4. Tích hợp Giao diện (UI Layout Integration)
+## 5. Kế hoạch triển khai & Kiểm thử (Migration Plan)
 
-Đưa toàn bộ giao diện Laundry vào một route con biệt lập để tránh xung đột với các trang sẵn có:
-
-- **/admin/laundry-inventory**: Dashboard Kho đồ vải.
-- **/admin/laundry-dispatch**: Quản lý cấp phát.
-- **/laundry**: Giao diện nghiệp vụ cho nhân viên nhà giặt.
-- **/request/laundry-order**: Giao diện gửi yêu cầu của điều dưỡng khoa phòng.
-
-Các tệp CSS toàn cục (`globals.css`) của Laundry sẽ được loại bỏ; các component sẽ sử dụng trực tiếp cấu hình CSS/Tailwind của hệ thống đích để tự động thừa hưởng font chữ và bảng màu của dự án gốc.
+1. **Database Sync:** Copy code model mới vào `prisma/schema.prisma` và chạy `npx prisma db push`.
+2. **NextAuth Update:** Bổ sung hàm ánh xạ quyền vào JWT/Session callback.
+3. **Copy Modules:** Copy các thư mục UI và API tương ứng vào `/app/dashboard/laundry` và `/app/api/laundry`.
+4. **CSS Alignment:** Xóa tệp `globals.css` cũ của Laundry. Đảm bảo cấu hình `tailwind.config` của BIH quét qua thư mục `app/dashboard/laundry` để compile style.
+5. **Testing (Vitest):** Viết các test case Vitest mới trong thư mục `tests/` để chạy kiểm tra.
